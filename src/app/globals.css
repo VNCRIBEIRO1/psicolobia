@@ -1,0 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=Commissioner:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --primary: #D4A574;
+    --primary-dark: #B8895C;
+    --primary-light: #E8C9A8;
+    --accent: #E8A0BF;
+    --accent-light: #F5C8DE;
+    --bg: #FFF5EE;
+    --bg-white: #FFFFFF;
+    --bg-soft: #FDE8D8;
+    --bg-warm: #F9EDE3;
+    --text: #3D2B1F;
+    --text-light: #6B5445;
+    --text-muted: #A08E82;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Commissioner', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@layer components {
+  .btn-brand {
+    @apply inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm cursor-pointer transition-all duration-300;
+  }
+  .btn-brand-primary {
+    @apply btn-brand bg-primary text-white shadow-md hover:bg-primary-dark hover:-translate-y-0.5 hover:shadow-lg;
+  }
+  .btn-brand-outline {
+    @apply btn-brand bg-transparent text-primary-dark border-2 border-primary hover:bg-primary hover:text-white;
+  }
+  .btn-brand-accent {
+    @apply btn-brand bg-accent text-white shadow-md hover:opacity-90 hover:-translate-y-0.5;
+  }
+  .section-label {
+    @apply inline-flex items-center gap-2 text-xs font-bold text-accent uppercase tracking-widest mb-2;
+  }
+  .section-label::before {
+    content: '';
+    @apply w-6 h-0.5 bg-primary rounded-full;
+  }
+  .section-title {
+    @apply font-heading text-2xl md:text-3xl lg:text-4xl font-semibold text-txt leading-tight mb-3;
+  }
+  .card {
+    @apply bg-white rounded-brand p-6 shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+  }
+}
+
+@layer utilities {
+  .animate-reveal {
+    animation: reveal 0.6s ease forwards;
+  }
+  @keyframes reveal {
+    from { opacity: 0; transform: translateY(25px); }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

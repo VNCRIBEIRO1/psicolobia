@@ -1,0 +1,41 @@
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { groups } from "@/db/schema";
+import { desc } from "drizzle-orm";
+
+export async function GET() {
+  try {
+    const result = await db.select().from(groups).orderBy(desc(groups.createdAt));
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error("GET /api/groups error:", error);
+    return NextResponse.json({ error: "Erro ao buscar grupos." }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { name, description, modality, dayOfWeek, time, maxParticipants, price } = body;
+
+    if (!name) {
+      return NextResponse.json({ error: "Nome do grupo é obrigatório." }, { status: 400 });
+    }
+
+    const [newGroup] = await db.insert(groups).values({
+      name,
+      description: description || null,
+      modality: modality || "online",
+      dayOfWeek: dayOfWeek || null,
+      time: time || null,
+      maxParticipants: maxParticipants || 8,
+      price: price || null,
+      active: true,
+    }).returning();
+
+    return NextResponse.json(newGroup, { status: 201 });
+  } catch (error) {
+    console.error("POST /api/groups error:", error);
+    return NextResponse.json({ error: "Erro ao criar grupo." }, { status: 500 });
+  }
+}
