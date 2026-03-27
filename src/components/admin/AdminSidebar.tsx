@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
+import { useState } from "react";
 
 const menuItems = [
   { href: "/admin", icon: "📊", label: "Dashboard" },
@@ -17,9 +18,10 @@ const menuItems = [
 export function AdminSidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  return (
-    <aside className="fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-primary/10 flex flex-col z-50 hidden md:flex">
+  const sidebarContent = (
+    <>
       {/* Logo */}
       <div className="p-6 border-b border-primary/10">
         <Link href="/admin" className="flex items-center gap-2.5">
@@ -38,7 +40,7 @@ export function AdminSidebar() {
         {menuItems.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
           return (
-            <Link key={item.href} href={item.href}
+            <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
               className={`flex items-center gap-3 px-4 py-2.5 rounded-brand-sm text-sm font-medium transition-colors
                 ${isActive ? "bg-primary/10 text-primary-dark font-bold" : "text-txt-light hover:bg-bg hover:text-txt"}`}>
               <span className="text-base">{item.icon}</span>
@@ -62,6 +64,37 @@ export function AdminSidebar() {
           <span>🚪</span> Sair
         </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile hamburger */}
+      <button onClick={() => setMobileOpen(true)}
+        className="md:hidden fixed top-4 left-4 z-[60] w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center border border-primary/10">
+        <span className="flex flex-col gap-1">
+          <span className="w-4 h-0.5 bg-txt rounded-full" />
+          <span className="w-4 h-0.5 bg-txt rounded-full" />
+          <span className="w-4 h-0.5 bg-txt rounded-full" />
+        </span>
+      </button>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-[70]">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} />
+          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-white flex flex-col z-[71] shadow-xl">
+            <button onClick={() => setMobileOpen(false)}
+              className="absolute top-4 right-4 text-xl text-txt-muted hover:text-txt">✕</button>
+            {sidebarContent}
+          </aside>
+        </div>
+      )}
+
+      {/* Desktop sidebar */}
+      <aside className="fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-primary/10 flex-col z-50 hidden md:flex">
+        {sidebarContent}
+      </aside>
+    </>
   );
 }

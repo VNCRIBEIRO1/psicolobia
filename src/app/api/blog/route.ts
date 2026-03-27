@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { blogPosts } from "@/db/schema";
 import { eq, desc, and, ilike } from "drizzle-orm";
 import { slugify } from "@/lib/utils";
+import { requireAdmin } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
   try {
@@ -29,6 +30,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireAdmin();
+    if (auth.error) return auth.response;
+
     const body = await req.json();
     const { title, content, excerpt, category, coverImage, status } = body;
 

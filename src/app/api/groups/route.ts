@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { groups } from "@/db/schema";
 import { desc } from "drizzle-orm";
+import { requireAdmin } from "@/lib/api-auth";
 
 export async function GET() {
   try {
+    const auth = await requireAdmin();
+    if (auth.error) return auth.response;
+
     const result = await db.select().from(groups).orderBy(desc(groups.createdAt));
     return NextResponse.json(result);
   } catch (error) {
@@ -15,6 +19,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireAdmin();
+    if (auth.error) return auth.response;
+
     const body = await req.json();
     const { name, description, modality, dayOfWeek, time, maxParticipants, price } = body;
 

@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { patients, appointments, payments } from "@/db/schema";
 import { eq, count, sum, and, gte, lte, desc } from "drizzle-orm";
+import { requireAdmin } from "@/lib/api-auth";
 
 export async function GET() {
   try {
+    const auth = await requireAdmin();
+    if (auth.error) return auth.response;
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);

@@ -4,12 +4,37 @@ import { WHATSAPP_LINK, INSTAGRAM_URL, TIKTOK_URL } from "@/lib/utils";
 
 export function Contact() {
   const [toast, setToast] = useState("");
+  const [sending, setSending] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setToast("✅ Mensagem enviada! Retornaremos com carinho em breve 🌿");
-    (e.target as HTMLFormElement).reset();
-    setTimeout(() => setToast(""), 4000);
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    setSending(true);
+
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.get("name"),
+          email: formData.get("email"),
+          subject: formData.get("subject"),
+          message: formData.get("message"),
+        }),
+      });
+      if (res.ok) {
+        setToast("✅ Mensagem enviada! Retornaremos com carinho em breve 🌿");
+        form.reset();
+      } else {
+        setToast("⚠️ Erro ao enviar. Tente novamente ou entre em contato pelo WhatsApp.");
+      }
+    } catch {
+      setToast("⚠️ Erro de conexão. Tente novamente.");
+    } finally {
+      setSending(false);
+      setTimeout(() => setToast(""), 4000);
+    }
   };
 
   return (
@@ -51,17 +76,17 @@ export function Contact() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold mb-1">Nome *</label>
-                <input type="text" required placeholder="Seu nome"
+                <input type="text" name="name" required placeholder="Seu nome"
                   className="w-full py-2.5 px-3 border-[1.5px] border-primary/15 rounded-brand-sm font-body text-sm bg-white text-txt focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" />
               </div>
               <div>
                 <label className="block text-xs font-bold mb-1">E-mail *</label>
-                <input type="email" required placeholder="seu@email.com"
+                <input type="email" name="email" required placeholder="seu@email.com"
                   className="w-full py-2.5 px-3 border-[1.5px] border-primary/15 rounded-brand-sm font-body text-sm bg-white text-txt focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" />
               </div>
               <div>
                 <label className="block text-xs font-bold mb-1">Assunto</label>
-                <select className="w-full py-2.5 px-3 border-[1.5px] border-primary/15 rounded-brand-sm font-body text-sm bg-white text-txt focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10">
+                <select name="subject" className="w-full py-2.5 px-3 border-[1.5px] border-primary/15 rounded-brand-sm font-body text-sm bg-white text-txt focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10">
                   <option>Agendar sessão</option>
                   <option>Grupo terapêutico</option>
                   <option>Terapia infantil</option>
@@ -71,11 +96,11 @@ export function Contact() {
               </div>
               <div>
                 <label className="block text-xs font-bold mb-1">Mensagem *</label>
-                <textarea required placeholder="Como posso te acolher?" rows={3}
+                <textarea name="message" required placeholder="Como posso te acolher?" rows={3}
                   className="w-full py-2.5 px-3 border-[1.5px] border-primary/15 rounded-brand-sm font-body text-sm bg-white text-txt focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 resize-y" />
               </div>
-              <button type="submit" className="btn-brand-primary w-full justify-center">
-                Enviar com Carinho 🌿
+              <button type="submit" disabled={sending} className="btn-brand-primary w-full justify-center">
+                {sending ? "Enviando..." : "Enviar com Carinho 🌿"}
               </button>
             </form>
           </div>

@@ -4,13 +4,17 @@ import { useState, useRef, useEffect } from "react";
 type BotResponse = { msg: string; opts: string[] };
 const botResponses: Record<string, BotResponse> = {
   agendar: { msg: 'Para agendar com a Bea, role até a seção "Agendar" no site ou chame no WhatsApp (11) 98884-0525. Ela responde rápido! 💚', opts: ["serviços", "online", "infantil", "grupos"] },
-  "serviços": { msg: "🌿 Serviços da Bea:\n\n• Terapia Individual (50 min)\n• Terapia Infantil (45 min)\n• Terapia Online (50 min)\n• Terapia de Casal (60 min)\n• Grupo Terapêutico (90 min)\n• Palestras & Workshops\n\n+3500 atendimentos realizados!", opts: ["agendar", "sala de espera", "contato"] },
+  "serviços": { msg: "🌿 Serviços da Bea:\n\n• Terapia Individual (50 min)\n• Terapia Infantil (45 min)\n• Terapia Online (50 min)\n• Terapia de Casal (60 min)\n• Grupo Terapêutico (90 min)\n• Palestras & Workshops\n\n+3500 atendimentos realizados!", opts: ["agendar", "valores", "contato"] },
   online: { msg: "💻 A Bea é especialista em atendimento online — o vínculo é vivo, humano e presente mesmo pela tela. Você pode usar a Sala de Espera Virtual para se preparar antes da sessão.", opts: ["sala de espera", "agendar", "serviços"] },
   infantil: { msg: "🧒 A terapia infantil é feita através de brincadeiras, desenhos e histórias. Crianças de 4 a 12 anos. Os pais participam das sessões de orientação mensais.", opts: ["agendar", "serviços", "como funciona"] },
   grupos: { msg: "👥 Grupos terapêuticos ativos com a Bea:\n\n• Círculo de Mulheres (Qua 19h)\n• Manejo da Ansiedade (Ter 20h, online)\n• Autoestima (Sex 14h)\n\nGrupos de 6-8 pessoas.", opts: ["agendar", "serviços", "contato"] },
   "sala de espera": { msg: '🌿 A Sala de Espera Virtual é um espaço para você se preparar antes da sessão online. Tem dicas de respiração e um timer. Role até a seção "Sala de Espera" na página!', opts: ["online", "agendar", "como funciona"] },
-  "como funciona": { msg: "O processo terapêutico com a Bea tem 5 etapas:\n\n1️⃣ Primeiro contato\n2️⃣ Triagem inicial\n3️⃣ Sessão de acolhimento (sem compromisso)\n4️⃣ Processo contínuo (semanal/quinzenal)\n5️⃣ Alta terapêutica\n\nSem pressa, no seu ritmo. 💚", opts: ["agendar", "serviços", "contato"] },
+  "como funciona": { msg: "O processo terapêutico com a Bea tem 5 etapas:\n\n1️⃣ Primeiro contato\n2️⃣ Triagem inicial\n3️⃣ Sessão de acolhimento (sem compromisso)\n4️⃣ Processo contínuo (semanal/quinzenal)\n5️⃣ Alta terapêutica\n\nSem pressa, no seu ritmo. 💚", opts: ["agendar", "valores", "contato"] },
   contato: { msg: "📱 WhatsApp: (11) 98884-0525\n📸 Instagram: @psicolobiaa\n🎵 TikTok: @psicolobiaa\n\nA Bea responde rápido! Entre em contato sem compromisso 🌿", opts: ["agendar", "serviços", "como funciona"] },
+  ansiedade: { msg: "🧠 A ansiedade é uma das queixas mais comuns nos atendimentos da Bea. Com a Terapia de Aceitação e Compromisso (ACT), você aprende a acolher emoções difíceis sem ser dominado(a) por elas.\n\nA Bea tem certificação em Transtorno Ansioso e Depressivo pelo Albert Einstein! 🏥", opts: ["agendar", "depressão", "como funciona"] },
+  "depressão": { msg: "💙 A depressão pode fazer tudo parecer pesado. A Bea trabalha com ACT e Terapia para Tratamento de Traumas, ajudando você a reconectar com o que importa na sua vida.\n\nVocê não precisa passar por isso sozinho(a). 🌿", opts: ["agendar", "ansiedade", "emergência"] },
+  valores: { msg: "💰 Valores das sessões:\n\n• Terapia Individual (50 min)\n• Terapia Infantil (45 min)\n• Terapia de Casal (60 min)\n• Grupo Terapêutico (90 min)\n\nOs valores são informados diretamente pelo WhatsApp. A Bea trabalha com preços acessíveis e possibilidade de negociação 🌿", opts: ["agendar", "serviços", "contato"] },
+  "emergência": { msg: "🚨 Se você está em crise ou tendo pensamentos suicidas:\n\n📞 CVV: 188 (24h, gratuito)\n💬 Chat: cvv.org.br\n📱 SAMU: 192\n\nVocê não está sozinho(a). Busque ajuda agora. ❤️\n\nA Bea também está disponível no WhatsApp para orientação.", opts: ["contato", "agendar"] },
 };
 
 type Msg = { text: string; from: "bot" | "user" };
@@ -20,6 +24,7 @@ export function Chatbot() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [options, setOptions] = useState<string[]>([]);
   const [inited, setInited] = useState(false);
+  const [textInput, setTextInput] = useState("");
   const messagesRef = useRef<HTMLDivElement>(null);
 
   const scrollDown = () => {
@@ -31,9 +36,31 @@ export function Chatbot() {
     setOpen(next);
     if (next && !inited) {
       setMessages([{ text: "Olá! 🌿 Bem-vindo(a)! Sou a assistente virtual da Bea (Psicolobia). Como posso te ajudar?", from: "bot" }]);
-      setOptions(["agendar", "serviços", "online", "infantil", "grupos", "como funciona"]);
+      setOptions(["agendar", "serviços", "ansiedade", "online", "valores", "como funciona"]);
       setInited(true);
     }
+  };
+
+  const findBestMatch = (input: string): string | null => {
+    const lower = input.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const keywords: Record<string, string[]> = {
+      agendar: ["agendar", "agenda", "marcar", "sessao", "consulta", "horario"],
+      "serviços": ["servico", "servicos", "atendimento", "tipo", "modalidade"],
+      online: ["online", "distancia", "remoto", "video", "videochamada"],
+      infantil: ["infantil", "crianca", "filho", "filha", "criancas"],
+      grupos: ["grupo", "grupos", "coletivo", "circulo"],
+      "sala de espera": ["sala", "espera", "esperar", "timer"],
+      "como funciona": ["funciona", "processo", "etapa", "comecar", "inicio"],
+      contato: ["contato", "whatsapp", "instagram", "telefone", "falar"],
+      ansiedade: ["ansiedade", "ansiosa", "ansioso", "panico", "nervoso"],
+      "depressão": ["depressao", "depressivo", "triste", "tristeza", "desanimo"],
+      valores: ["valor", "valores", "preco", "precos", "custo", "quanto"],
+      "emergência": ["emergencia", "crise", "suicidio", "suicida", "urgente", "cvv", "188"],
+    };
+    for (const [key, words] of Object.entries(keywords)) {
+      if (words.some((w) => lower.includes(w))) return key;
+    }
+    return null;
   };
 
   const handleOpt = (key: string) => {
@@ -84,7 +111,7 @@ export function Chatbot() {
         </div>
 
         {options.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 px-4 pb-3">
+          <div className="flex flex-wrap gap-1.5 px-4 pb-2">
             {options.map((o) => (
               <button key={o} onClick={() => handleOpt(o)}
                 className="px-3 py-1 bg-bg border border-primary/15 rounded-full text-[0.7rem] font-body text-txt hover:bg-primary hover:text-white hover:border-primary transition-colors cursor-pointer">
@@ -93,6 +120,35 @@ export function Chatbot() {
             ))}
           </div>
         )}
+
+        {/* Text Input */}
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          if (!textInput.trim()) return;
+          const input = textInput.trim();
+          setTextInput("");
+          setMessages((prev) => [...prev, { text: input, from: "user" }]);
+          setOptions([]);
+          scrollDown();
+          const match = findBestMatch(input);
+          setTimeout(() => {
+            if (match && botResponses[match]) {
+              setMessages((prev) => [...prev, { text: botResponses[match].msg, from: "bot" }]);
+              setOptions(botResponses[match].opts);
+            } else {
+              setMessages((prev) => [...prev, { text: "Hmm, não entendi muito bem 🤔 Mas posso te ajudar com essas opções:", from: "bot" }]);
+              setOptions(["agendar", "serviços", "ansiedade", "valores", "contato", "emergência"]);
+            }
+            scrollDown();
+          }, 500);
+        }} className="px-4 pb-3 flex gap-2">
+          <input type="text" value={textInput} onChange={(e) => setTextInput(e.target.value)}
+            placeholder="Digite sua dúvida..."
+            className="flex-1 py-2 px-3 border border-primary/15 rounded-full text-xs font-body bg-bg text-txt focus:outline-none focus:border-primary" />
+          <button type="submit" className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-xs hover:bg-primary-dark transition-colors">
+            ➤
+          </button>
+        </form>
       </div>
     </>
   );

@@ -1,10 +1,12 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { JitsiMeet } from "@/components/JitsiMeet";
 
 export function WaitingRoom() {
   const [started, setStarted] = useState(false);
   const [seconds, setSeconds] = useState(900);
   const [ready, setReady] = useState(false);
+  const [showJitsi, setShowJitsi] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const start = () => {
@@ -30,6 +32,9 @@ export function WaitingRoom() {
 
   const m = Math.floor(seconds / 60).toString().padStart(2, "0");
   const s = (seconds % 60).toString().padStart(2, "0");
+
+  const roomId = `sessao-${Date.now().toString(36)}`;
+  const closeJitsi = useCallback(() => setShowJitsi(false), []);
 
   return (
     <section className="py-20 px-4 md:px-8 bg-white" id="sala-espera">
@@ -64,11 +69,16 @@ export function WaitingRoom() {
             <button onClick={start} className="btn-brand-primary">🌿 Iniciar Espera</button>
           )}
           {ready && (
-            <button className="btn-brand-accent" onClick={() => alert("📹 Redirecionando para a sala de videochamada...")}>
+            <button className="btn-brand-accent" onClick={() => setShowJitsi(true)}>
               📹 Entrar na Sessão
             </button>
           )}
         </div>
+
+        {/* Jitsi Modal */}
+        {showJitsi && (
+          <JitsiMeet roomName={roomId} displayName="Paciente" onClose={closeJitsi} />
+        )}
 
         <div className="mt-8 pt-6 border-t border-primary/15">
           <h4 className="font-heading text-sm font-semibold mb-3">🧘 Enquanto Espera...</h4>

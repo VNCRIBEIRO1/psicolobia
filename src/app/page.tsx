@@ -13,9 +13,44 @@ import { Footer } from "@/components/landing/Footer";
 import { WhatsAppFloat } from "@/components/landing/WhatsAppFloat";
 import { Chatbot } from "@/components/landing/Chatbot";
 
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "ProfessionalService",
+  name: "Psicolobia",
+  description: "Beatriz (Bea) — Psicóloga Clínica. Especialista no emocional de quem vive da internet. +3500 atendimentos realizados.",
+  url: "https://psicolobia.vercel.app",
+  telephone: "+5511988840525",
+  address: {
+    "@type": "PostalAddress",
+    addressLocality: "São Paulo",
+    addressRegion: "SP",
+    addressCountry: "BR",
+  },
+  priceRange: "$$",
+  image: "https://psicolobia.vercel.app/bia.png",
+  sameAs: [
+    "https://www.instagram.com/psicolobiaa",
+    "https://www.tiktok.com/@psicolobiaa",
+    "https://linktr.ee/psicolobiaa",
+  ],
+  founder: {
+    "@type": "Person",
+    name: "Beatriz",
+    jobTitle: "Psicóloga Clínica",
+    description: "CRP 06/173961 — UNOESTE. Especialista em Terapia de Aceitação e Compromisso (ACT) e Terapia para Tratamento de Traumas.",
+    sameAs: ["https://www.instagram.com/psicolobiaa"],
+  },
+  areaServed: { "@type": "Country", name: "BR" },
+  serviceType: ["Terapia Individual", "Terapia Online", "Terapia Infantil", "Terapia de Casal", "Grupos Terapêuticos"],
+};
+
 export default function Home() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Header />
       <main id="main">
         <Hero />

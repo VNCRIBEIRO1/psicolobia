@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 
 type Patient = {
@@ -13,13 +13,26 @@ type Patient = {
 
 export default function PacientesPage() {
   const [search, setSearch] = useState("");
-  const [patients] = useState<Patient[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = patients.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.email?.toLowerCase().includes(search.toLowerCase()) ||
-    p.phone?.includes(search)
-  );
+  const fetchPatients = useCallback((q?: string) => {
+    const url = q ? `/api/patients?q=${encodeURIComponent(q)}` : "/api/patients";
+    fetch(url)
+      .then((r) => r.ok ? r.json() : [])
+      .then((d) => setPatients(Array.isArray(d) ? d : []))
+      .catch(() => setPatients([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { fetchPatients(); }, [fetchPatients]);
+
+  useEffect(() => {
+    const t = setTimeout(() => { if (search) fetchPatients(search); else fetchPatients(); }, 300);
+    return () => clearTimeout(t);
+  }, [search, fetchPatients]);
+
+  const filtered = patients;
 
   return (
     <div>

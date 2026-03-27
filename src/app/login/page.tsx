@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -29,7 +29,13 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/admin");
+    // Redirect based on role
+    const session = await getSession();
+    if (session?.user?.role === "patient") {
+      router.push("/portal");
+    } else {
+      router.push("/admin");
+    }
     router.refresh();
   };
 

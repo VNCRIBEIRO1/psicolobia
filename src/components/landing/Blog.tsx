@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 
 const posts = [
@@ -12,8 +12,24 @@ const posts = [
 
 export function Blog() {
   const [pos, setPos] = useState(0);
-  const visible = typeof window !== "undefined" && window.innerWidth <= 768 ? 1 : typeof window !== "undefined" && window.innerWidth <= 1024 ? 2 : 3;
+  const [visible, setVisible] = useState(3);
+
+  useEffect(() => {
+    const update = () => {
+      if (window.innerWidth <= 768) setVisible(1);
+      else if (window.innerWidth <= 1024) setVisible(2);
+      else setVisible(3);
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
   const maxPos = Math.max(0, posts.length - visible);
+
+  useEffect(() => {
+    if (pos > maxPos) setPos(maxPos);
+  }, [maxPos, pos]);
 
   return (
     <section className="py-20 px-4 md:px-8 bg-bg-warm" id="blog">

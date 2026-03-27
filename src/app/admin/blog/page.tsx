@@ -1,9 +1,18 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 export default function AdminBlogPage() {
-  const [posts] = useState<{ id: string; title: string; status: string; category: string; publishedAt: string | null }[]>([]);
+  const [posts, setPosts] = useState<{ id: string; title: string; status: string; category: string; publishedAt: string | null }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/blog")
+      .then((r) => r.ok ? r.json() : [])
+      .then((d) => setPosts(Array.isArray(d) ? d : []))
+      .catch(() => setPosts([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <div>
