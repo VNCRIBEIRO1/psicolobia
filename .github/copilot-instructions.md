@@ -36,3 +36,9 @@
 - For manual verification, open `index.html` in a browser or use a lightweight static server only if the task needs one.
 - Prefer preserving the current one-file architecture; only split HTML/CSS/JS into separate files when the user explicitly wants that tradeoff.
 - `README.md` is currently minimal, so treat `index.html` as the source of truth for structure, copy, and behavior.
+
+## Commit & deploy — OBRIGATÓRIO após toda alteração
+- **Sempre** execute `git add -A && git commit -m "<msg>" && git push origin main` ao final de cada tarefa.
+- O Vercel detecta o push em `main` e faz o redeploy automaticamente em `https://psicolobia.vercel.app`.
+- Mensagem de commit deve seguir o padrão: `feat|fix|chore|style|content: descrição curta em pt-BR`.
+- Nunca encerre uma tarefa sem confirmar que o push foi bem-sucedido.
