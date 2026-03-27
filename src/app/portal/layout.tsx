@@ -14,6 +14,7 @@ function PortalSidebar() {
       <nav className="flex-1 space-y-1">
         {[
           { href: "/portal", label: "Início", icon: "🏠" },
+          { href: "/portal/agendar", label: "Agendar Sessão", icon: "🗓️" },
           { href: "/portal/sessoes", label: "Minhas Sessões", icon: "📅" },
           { href: "/portal/pagamentos", label: "Pagamentos", icon: "💳" },
           { href: "/portal/documentos", label: "Documentos", icon: "📄" },
