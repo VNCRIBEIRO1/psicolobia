@@ -1,10 +1,10 @@
 const services = [
-  { icon: "🌿", title: "Terapia Individual", time: "50 min", desc: "Sessões presenciais ou online. Acolhimento, escuta e autoconhecimento em um espaço seguro." },
-  { icon: "🧒", title: "Terapia Infantil", time: "45 min", desc: "Através do brincar, a criança expressa e elabora suas emoções de forma lúdica e acolhedora." },
-  { icon: "👩‍💻", title: "Terapia Online", time: "50 min", desc: "Atendimento por videochamada com a mesma qualidade. Ideal para quem busca flexibilidade." },
+  { icon: "🌿", title: "Terapia Individual Online", time: "50 min", desc: "Sessões semanais por videochamada com escuta sensível e profunda. Abordagem baseada em ACT para autoconhecimento e acolhimento." },
+  { icon: "🧠", title: "Ansiedade & Depressão", time: "50 min", desc: "Tratamento especializado com certificação Albert Einstein. Técnicas de ACT e mindfulness para manejo do sofrimento emocional." },
+  { icon: "💔", title: "Tratamento de Traumas", time: "50 min", desc: "Reprocessamento de experiências traumáticas com abordagem segura e acolhedora. Resgate da sua narrativa de vida." },
+  { icon: "👩‍💻", title: "Criadores de Conteúdo", time: "50 min", desc: "Atendimento especializado para quem vive da internet. Burnout digital, exposição, ansiedade de performance." },
+  { icon: "💑", title: "Terapia de Casal", time: "60 min", desc: "Para casais que buscam fortalecer a comunicação, resolver conflitos e construir uma relação mais saudável." },
   { icon: "👥", title: "Grupo Terapêutico", time: "90 min", desc: "Grupos de 6 a 8 pessoas. Encontros semanais com temas como autoestima, ansiedade e empoderamento." },
-  { icon: "💑", title: "Terapia de Casal", time: "60 min", desc: "Espaço para diálogo e reconexão. Comunicação assertiva e reconstrução de vínculos afetivos." },
-  { icon: "🏢", title: "Palestras & Workshops", time: "Consultar", desc: "Temas como saúde mental no trabalho, gestão emocional, parentalidade consciente." },
 ];
 
 export function Services() {

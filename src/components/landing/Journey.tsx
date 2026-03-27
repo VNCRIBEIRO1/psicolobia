@@ -1,9 +1,9 @@
 const steps = [
-  { num: "1", title: "Primeiro Contato", desc: "Envie uma mensagem ou entre em contato por WhatsApp. Respondo em até 2h." },
-  { num: "2", title: "Triagem Inicial", desc: "Uma conversa breve para entender sua demanda e definir o melhor caminho." },
-  { num: "3", title: "Sessão de Acolhimento", desc: "Primeira sessão sem compromisso. Conhecemos juntos o espaço terapêutico." },
-  { num: "4", title: "Processo Contínuo", desc: "Sessões semanais ou quinzenais. Plano terapêutico personalizado." },
-  { num: "5", title: "Alta Terapêutica", desc: "Quando estiver pronto, encerramos juntos com carinho e autonomia." },
+  { num: "1", title: "Primeiro Contato", desc: "Entre em contato pelo WhatsApp ou pelo formulário do site. Respondo pessoalmente em até 2h." },
+  { num: "2", title: "Triagem Gratuita", desc: "Uma conversa breve (15 min) por chamada para entender sua demanda e verificar se faz sentido caminharmos juntos." },
+  { num: "3", title: "Sessão de Acolhimento", desc: "Primeira sessão online completa. Conhecemos juntos o espaço terapêutico — sem compromisso de continuidade." },
+  { num: "4", title: "Processo Terapêutico", desc: "Sessões semanais ou quinzenais via videochamada. Plano terapêutico personalizado com base em ACT e tratamento de traumas." },
+  { num: "5", title: "Alta Terapêutica", desc: "Quando você estiver pronto, encerramos juntos com carinho e autonomia. O retorno é sempre possível." },
 ];
 
 export function Journey() {

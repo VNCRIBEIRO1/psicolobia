@@ -3,17 +3,17 @@ import { useState, useRef, useEffect } from "react";
 
 type BotResponse = { msg: string; opts: string[] };
 const botResponses: Record<string, BotResponse> = {
-  agendar: { msg: 'Para agendar com a Bea, role até a seção "Agendar" no site ou chame no WhatsApp (11) 98884-0525. Ela responde rápido! 💚', opts: ["serviços", "online", "infantil", "grupos"] },
-  "serviços": { msg: "🌿 Serviços da Bea:\n\n• Terapia Individual (50 min)\n• Terapia Infantil (45 min)\n• Terapia Online (50 min)\n• Terapia de Casal (60 min)\n• Grupo Terapêutico (90 min)\n• Palestras & Workshops\n\n+3500 atendimentos realizados!", opts: ["agendar", "valores", "contato"] },
+  agendar: { msg: 'Para agendar com a Bea, role até a seção "Agendar" no site ou chame no WhatsApp (11) 98884-0525. Ela responde rápido! 💚', opts: ["serviços", "online", "valores", "grupos"] },
+  "serviços": { msg: "🌿 Serviços da Bea:\n\n• Terapia Individual Online (50 min)\n• Ansiedade & Depressão (50 min) — Cert. Albert Einstein\n• Tratamento de Traumas (50 min)\n• Criadores de Conteúdo (50 min)\n• Terapia de Casal (60 min)\n• Grupo Terapêutico (90 min)\n\n+3500 atendimentos realizados!", opts: ["agendar", "valores", "contato"] },
   online: { msg: "💻 A Bea é especialista em atendimento online — o vínculo é vivo, humano e presente mesmo pela tela. Você pode usar a Sala de Espera Virtual para se preparar antes da sessão.", opts: ["sala de espera", "agendar", "serviços"] },
-  infantil: { msg: "🧒 A terapia infantil é feita através de brincadeiras, desenhos e histórias. Crianças de 4 a 12 anos. Os pais participam das sessões de orientação mensais.", opts: ["agendar", "serviços", "como funciona"] },
+  casal: { msg: "💑 A terapia de casal é para casais que buscam fortalecer a comunicação, resolver conflitos e construir uma relação mais saudável. Sessões de 60 minutos com escuta empática para ambos.", opts: ["agendar", "serviços", "como funciona"] },
   grupos: { msg: "👥 Grupos terapêuticos ativos com a Bea:\n\n• Círculo de Mulheres (Qua 19h)\n• Manejo da Ansiedade (Ter 20h, online)\n• Autoestima (Sex 14h)\n\nGrupos de 6-8 pessoas.", opts: ["agendar", "serviços", "contato"] },
   "sala de espera": { msg: '🌿 A Sala de Espera Virtual é um espaço para você se preparar antes da sessão online. Tem dicas de respiração e um timer. Role até a seção "Sala de Espera" na página!', opts: ["online", "agendar", "como funciona"] },
-  "como funciona": { msg: "O processo terapêutico com a Bea tem 5 etapas:\n\n1️⃣ Primeiro contato\n2️⃣ Triagem inicial\n3️⃣ Sessão de acolhimento (sem compromisso)\n4️⃣ Processo contínuo (semanal/quinzenal)\n5️⃣ Alta terapêutica\n\nSem pressa, no seu ritmo. 💚", opts: ["agendar", "valores", "contato"] },
+  "como funciona": { msg: "O processo terapêutico com a Bea tem 5 etapas:\n\n1️⃣ Primeiro contato (WhatsApp ou formulário)\n2️⃣ Triagem gratuita (15 min por chamada)\n3️⃣ Sessão de acolhimento (sem compromisso)\n4️⃣ Processo terapêutico (semanal ou quinzenal)\n5️⃣ Alta terapêutica (quando você estiver pronto)\n\nSem pressa, no seu ritmo. 💚", opts: ["agendar", "valores", "contato"] },
   contato: { msg: "📱 WhatsApp: (11) 98884-0525\n📸 Instagram: @psicolobiaa\n🎵 TikTok: @psicolobiaa\n\nA Bea responde rápido! Entre em contato sem compromisso 🌿", opts: ["agendar", "serviços", "como funciona"] },
   ansiedade: { msg: "🧠 A ansiedade é uma das queixas mais comuns nos atendimentos da Bea. Com a Terapia de Aceitação e Compromisso (ACT), você aprende a acolher emoções difíceis sem ser dominado(a) por elas.\n\nA Bea tem certificação em Transtorno Ansioso e Depressivo pelo Albert Einstein! 🏥", opts: ["agendar", "depressão", "como funciona"] },
   "depressão": { msg: "💙 A depressão pode fazer tudo parecer pesado. A Bea trabalha com ACT e Terapia para Tratamento de Traumas, ajudando você a reconectar com o que importa na sua vida.\n\nVocê não precisa passar por isso sozinho(a). 🌿", opts: ["agendar", "ansiedade", "emergência"] },
-  valores: { msg: "💰 Valores das sessões:\n\n• Terapia Individual (50 min)\n• Terapia Infantil (45 min)\n• Terapia de Casal (60 min)\n• Grupo Terapêutico (90 min)\n\nOs valores são informados diretamente pelo WhatsApp. A Bea trabalha com preços acessíveis e possibilidade de negociação 🌿", opts: ["agendar", "serviços", "contato"] },
+  valores: { msg: "💰 Valores das sessões:\n\n• Terapia Individual Online (50 min)\n• Ansiedade & Depressão (50 min)\n• Tratamento de Traumas (50 min)\n• Criadores de Conteúdo (50 min)\n• Terapia de Casal (60 min)\n• Grupo Terapêutico (90 min)\n\nOs valores são informados diretamente pelo WhatsApp. A Bea trabalha com preços acessíveis e possibilidade de negociação 🌿", opts: ["agendar", "serviços", "contato"] },
   "emergência": { msg: "🚨 Se você está em crise ou tendo pensamentos suicidas:\n\n📞 CVV: 188 (24h, gratuito)\n💬 Chat: cvv.org.br\n📱 SAMU: 192\n\nVocê não está sozinho(a). Busque ajuda agora. ❤️\n\nA Bea também está disponível no WhatsApp para orientação.", opts: ["contato", "agendar"] },
 };
 
@@ -47,7 +47,7 @@ export function Chatbot() {
       agendar: ["agendar", "agenda", "marcar", "sessao", "consulta", "horario"],
       "serviços": ["servico", "servicos", "atendimento", "tipo", "modalidade"],
       online: ["online", "distancia", "remoto", "video", "videochamada"],
-      infantil: ["infantil", "crianca", "filho", "filha", "criancas"],
+      casal: ["casal", "casamento", "relacionamento", "conjugal", "parceiro", "parceira"],
       grupos: ["grupo", "grupos", "coletivo", "circulo"],
       "sala de espera": ["sala", "espera", "esperar", "timer"],
       "como funciona": ["funciona", "processo", "etapa", "comecar", "inicio"],
