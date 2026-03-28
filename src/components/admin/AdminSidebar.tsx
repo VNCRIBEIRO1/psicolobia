@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useState } from "react";
+import { NotificationBell } from "@/components/admin/NotificationBell";
 
 const menuItems = [
   { href: "/admin", icon: "📊", label: "Dashboard" },
@@ -22,8 +23,8 @@ export function AdminSidebar() {
 
   const sidebarContent = (
     <>
-      {/* Logo */}
-      <div className="p-6 border-b border-primary/10">
+      {/* Logo + Notifications */}
+      <div className="p-6 border-b border-primary/10 flex items-center justify-between">
         <Link href="/admin" className="flex items-center gap-2.5">
           <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center text-white font-heading text-lg font-bold">
             Ψ
@@ -33,6 +34,7 @@ export function AdminSidebar() {
             <span className="text-[0.6rem] text-txt-muted block">Painel Administrativo</span>
           </div>
         </Link>
+        <NotificationBell />
       </div>
 
       {/* Nav */}

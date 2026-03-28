@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { appointments, patients } from "@/db/schema";
 import { eq, desc, and, gte, lte } from "drizzle-orm";
 import { requireAdmin } from "@/lib/api-auth";
+import { createNotification } from "@/lib/notifications";
 
 export async function GET(req: NextRequest) {
   try {
@@ -59,6 +60,17 @@ export async function POST(req: NextRequest) {
       notes: notes || null,
       status: "pending",
     }).returning();
+
+    // Get patient name for notification
+    const [pat] = await db.select({ name: patients.name }).from(patients).where(eq(patients.id, patientId));
+    await createNotification({
+      type: "appointment",
+      title: "Sessão agendada",
+      message: `Sessão agendada para ${pat?.name || "paciente"} em ${date} às ${startTime}.`,
+      patientId,
+      appointmentId: newAppointment.id,
+      linkUrl: `/admin/agenda`,
+    });
 
     return NextResponse.json(newAppointment, { status: 201 });
   } catch (error) {

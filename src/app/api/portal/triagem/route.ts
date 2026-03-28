@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { triages, appointments } from "@/db/schema";
+import { triages, appointments, patients } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "@/lib/api-auth";
+import { createNotification } from "@/lib/notifications";
 
 /* GET /api/portal/triagem?appointmentId=xxx */
 export async function GET(req: NextRequest) {
@@ -82,6 +83,20 @@ export async function POST(req: NextRequest) {
         })
         .where(eq(triages.appointmentId, appointmentId))
         .returning();
+
+      // Notify admin about updated triage
+      const [apt] = await db.select().from(appointments).where(eq(appointments.id, appointmentId));
+      if (apt) {
+        const [pat] = await db.select({ name: patients.name }).from(patients).where(eq(patients.id, apt.patientId));
+        await createNotification({
+          type: "triage",
+          title: "Triagem atualizada",
+          message: `${pat?.name || "Paciente"} atualizou a triagem da sessão de ${apt.date}.`,
+          patientId: apt.patientId,
+          appointmentId,
+          linkUrl: `/admin/pacientes/${apt.patientId}`,
+        });
+      }
       return NextResponse.json(updated);
     }
 
@@ -100,6 +115,20 @@ export async function POST(req: NextRequest) {
         completed: true,
       })
       .returning();
+
+    // Notify admin about new triage
+    const [apt] = await db.select().from(appointments).where(eq(appointments.id, appointmentId));
+    if (apt) {
+      const [pat] = await db.select({ name: patients.name }).from(patients).where(eq(patients.id, apt.patientId));
+      await createNotification({
+        type: "triage",
+        title: "Nova triagem recebida",
+        message: `${pat?.name || "Paciente"} preencheu a triagem pré-sessão de ${apt.date}.${mainConcern ? ` Queixa: ${mainConcern.substring(0, 80)}${mainConcern.length > 80 ? "..." : ""}` : ""}`,
+        patientId: apt.patientId,
+        appointmentId,
+        linkUrl: `/admin/pacientes/${apt.patientId}`,
+      });
+    }
 
     return NextResponse.json(created, { status: 201 });
   } catch (error) {

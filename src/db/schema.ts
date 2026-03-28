@@ -217,6 +217,21 @@ export const settings = pgTable("settings", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+/* ========== NOTIFICATIONS ========== */
+export const notifications = pgTable("notifications", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  type: varchar("type", { length: 50 }).notNull(), // triage, appointment, payment, registration, status_change
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  icon: varchar("icon", { length: 10 }),
+  linkUrl: varchar("link_url", { length: 500 }),
+  patientId: uuid("patient_id").references(() => patients.id, { onDelete: "cascade" }),
+  appointmentId: uuid("appointment_id").references(() => appointments.id, { onDelete: "set null" }),
+  paymentId: uuid("payment_id").references(() => payments.id, { onDelete: "set null" }),
+  read: boolean("read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 /* ========== RELATIONS ========== */
 export const usersRelations = relations(users, ({ many }) => ({
   blogPosts: many(blogPosts),
@@ -260,4 +275,10 @@ export const groupMembersRelations = relations(groupMembers, ({ one }) => ({
 
 export const triagesRelations = relations(triages, ({ one }) => ({
   appointment: one(appointments, { fields: [triages.appointmentId], references: [appointments.id] }),
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  patient: one(patients, { fields: [notifications.patientId], references: [patients.id] }),
+  appointment: one(appointments, { fields: [notifications.appointmentId], references: [appointments.id] }),
+  payment: one(payments, { fields: [notifications.paymentId], references: [payments.id] }),
 }));

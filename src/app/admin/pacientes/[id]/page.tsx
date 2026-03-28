@@ -99,6 +99,8 @@ export default function PacienteDetalhePage() {
   const [showCreateAccount, setShowCreateAccount] = useState(false);
   const [accountPassword, setAccountPassword] = useState("");
   const [accountEmail, setAccountEmail] = useState("");
+  const [accountMode, setAccountMode] = useState<"check" | "create" | "link">("check");
+  const [existingAccountInfo, setExistingAccountInfo] = useState<{ name: string; id: string; linkedPatientId?: string; linkedPatientName?: string } | null>(null);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -166,7 +168,62 @@ export default function PacienteDetalhePage() {
     setSaving(false);
   };
 
-  /* ---- Create portal account ---- */
+  /* ---- Create portal account (3-mode: check → link or create) ---- */
+  const handleCheckEmail = async () => {
+    const emailToCheck = accountEmail || patient?.email;
+    if (!emailToCheck) { flash("Informe um e-mail."); return; }
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/patients/${id}/create-account`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailToCheck }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        // Account created (no existing user found, but we sent no password — shouldn't happen in check mode)
+        flash(data.message || "Acesso criado! ✅");
+        setShowCreateAccount(false);
+        fetchAll();
+      } else if (data.error === "existing_account") {
+        setExistingAccountInfo({ name: data.existingUserName, id: data.existingUserId });
+        setAccountMode("link");
+      } else if (data.error === "Senha com pelo menos 6 caracteres é obrigatória.") {
+        // No existing user → go to create mode
+        setAccountMode("create");
+        setExistingAccountInfo(null);
+      } else {
+        flash(data.error || data.message || "Erro ao verificar e-mail.");
+      }
+    } catch { flash("Erro de conexão."); }
+    setSaving(false);
+  };
+
+  const handleLinkAccount = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/patients/${id}/create-account`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: accountEmail || patient?.email, linkExisting: true }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        flash(data.message || "Conta vinculada com sucesso! ✅");
+        setShowCreateAccount(false);
+        setAccountMode("check");
+        setExistingAccountInfo(null);
+        fetchAll();
+      } else if (data.error === "existing_linked") {
+        setExistingAccountInfo({ name: data.existingUserName || existingAccountInfo?.name || "", id: existingAccountInfo?.id || "", linkedPatientId: data.linkedPatientId, linkedPatientName: data.linkedPatientName });
+        flash(data.message || "Conta já vinculada a outro paciente.");
+      } else {
+        flash(data.error || data.message || "Erro ao vincular conta.");
+      }
+    } catch { flash("Erro de conexão."); }
+    setSaving(false);
+  };
+
   const handleCreateAccount = async () => {
     if (!accountPassword || accountPassword.length < 6) {
       flash("Senha deve ter pelo menos 6 caracteres.");
@@ -186,14 +243,38 @@ export default function PacienteDetalhePage() {
         flash("Acesso ao portal criado com sucesso! ✅");
         setShowCreateAccount(false);
         setAccountPassword("");
+        setAccountMode("check");
         fetchAll();
       } else {
         const data = await res.json();
-        flash(data.error || "Erro ao criar acesso.");
+        if (data.error === "existing_account") {
+          setExistingAccountInfo({ name: data.existingUserName, id: data.existingUserId });
+          setAccountMode("link");
+        } else {
+          flash(data.error || "Erro ao criar acesso.");
+        }
       }
     } catch {
       flash("Erro de conexão.");
     }
+    setSaving(false);
+  };
+
+  const handleMerge = async (sourcePatientId: string) => {
+    if (!confirm("Tem certeza? Esta ação não pode ser desfeita. O paciente origem será excluído e todos os registros transferidos.")) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/patients/${id}/merge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourcePatientId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        flash(`Pacientes mesclados! ${data.transferred.appointments} sessões, ${data.transferred.clinicalRecords} prontuários, ${data.transferred.payments} pagamentos transferidos. ✅`);
+        fetchAll();
+      } else flash(data.error || "Erro ao mesclar.");
+    } catch { flash("Erro de conexão."); }
     setSaving(false);
   };
 
@@ -363,41 +444,78 @@ export default function PacienteDetalhePage() {
                       </div>
                       {!showCreateAccount ? (
                         <button
-                          onClick={() => { setShowCreateAccount(true); setAccountEmail(patient.email || ""); }}
+                          onClick={() => { setShowCreateAccount(true); setAccountEmail(patient.email || ""); setAccountMode("check"); setExistingAccountInfo(null); setAccountPassword(""); }}
                           className="btn-brand-primary text-xs w-full !py-2"
                         >
                           🔑 Criar Acesso ao Portal
                         </button>
                       ) : (
-                        <div className="bg-blue-50 border border-blue-200 rounded-brand-sm p-3 space-y-2">
-                          <div>
-                            <label className="block text-xs font-bold mb-1">E-mail de login</label>
-                            <input
-                              type="email"
-                              value={accountEmail}
-                              onChange={(e) => setAccountEmail(e.target.value)}
-                              placeholder="email@exemplo.com"
-                              className={inputCls}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-bold mb-1">Senha temporária *</label>
-                            <input
-                              type="password"
-                              value={accountPassword}
-                              onChange={(e) => setAccountPassword(e.target.value)}
-                              placeholder="Mín. 6 caracteres"
-                              className={inputCls}
-                            />
-                          </div>
-                          <div className="flex gap-2">
-                            <button onClick={handleCreateAccount} disabled={saving} className="btn-brand-primary text-xs flex-1 !py-1.5 disabled:opacity-50">
-                              {saving ? "Criando…" : "Criar Acesso"}
-                            </button>
-                            <button onClick={() => setShowCreateAccount(false)} className="text-xs text-txt-muted hover:underline">
-                              Cancelar
-                            </button>
-                          </div>
+                        <div className="space-y-2">
+                          {/* Step 1: Check email */}
+                          {accountMode === "check" && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-brand-sm p-3 space-y-2">
+                              <p className="text-xs font-bold text-blue-700">1️⃣ Verificar e-mail</p>
+                              <div>
+                                <label className="block text-xs font-bold mb-1">E-mail de login</label>
+                                <input type="email" value={accountEmail} onChange={(e) => setAccountEmail(e.target.value)} placeholder="email@exemplo.com" className={inputCls} />
+                              </div>
+                              <div className="flex gap-2">
+                                <button onClick={handleCheckEmail} disabled={saving || !accountEmail} className="btn-brand-primary text-xs flex-1 !py-1.5 disabled:opacity-50">
+                                  {saving ? "Verificando…" : "🔍 Verificar E-mail"}
+                                </button>
+                                <button onClick={() => { setShowCreateAccount(false); setAccountMode("check"); }} className="text-xs text-txt-muted hover:underline">Cancelar</button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Step 2a: Link existing account */}
+                          {accountMode === "link" && existingAccountInfo && (
+                            <div className="space-y-2">
+                              <div className="bg-green-50 border border-green-200 rounded-brand-sm p-3">
+                                <p className="text-xs font-bold text-green-700">✅ Conta encontrada!</p>
+                                <p className="text-[0.65rem] text-green-600 mt-1">Nome: {existingAccountInfo.name}</p>
+                                <p className="text-[0.65rem] text-green-600">E-mail: {accountEmail || patient.email}</p>
+                              </div>
+                              {existingAccountInfo.linkedPatientId && (
+                                <div className="bg-orange-50 border border-orange-200 rounded-brand-sm p-3">
+                                  <p className="text-xs text-orange-700">⚠️ Conta vinculada a: <strong>{existingAccountInfo.linkedPatientName}</strong></p>
+                                  <p className="text-[0.65rem] text-orange-600 mt-1">Deseja mesclar os pacientes? (transfere registros do outro para este)</p>
+                                  <button onClick={() => handleMerge(existingAccountInfo.linkedPatientId!)} disabled={saving} className="mt-2 bg-orange-500 text-white text-xs font-bold px-3 py-1.5 rounded-brand-sm hover:bg-orange-600 disabled:opacity-50">
+                                    {saving ? "Mesclando…" : "🔀 Mesclar Pacientes"}
+                                  </button>
+                                </div>
+                              )}
+                              {!existingAccountInfo.linkedPatientId && (
+                                <div className="flex gap-2">
+                                  <button onClick={handleLinkAccount} disabled={saving} className="bg-green-600 text-white text-xs font-bold flex-1 py-1.5 rounded-brand-sm hover:bg-green-700 disabled:opacity-50">
+                                    {saving ? "Vinculando…" : "🔗 Vincular Conta Existente"}
+                                  </button>
+                                  <button onClick={() => { setAccountMode("check"); setExistingAccountInfo(null); }} className="text-xs text-txt-muted hover:underline">Voltar</button>
+                                </div>
+                              )}
+                              <button onClick={() => { setShowCreateAccount(false); setAccountMode("check"); setExistingAccountInfo(null); }} className="text-xs text-txt-muted hover:underline w-full text-center">
+                                Cancelar
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Step 2b: Create new account */}
+                          {accountMode === "create" && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-brand-sm p-3 space-y-2">
+                              <p className="text-xs font-bold text-blue-700">🆕 Criar nova conta</p>
+                              <p className="text-[0.65rem] text-blue-600">Nenhuma conta encontrada para {accountEmail}. Crie uma senha.</p>
+                              <div>
+                                <label className="block text-xs font-bold mb-1">Senha temporária *</label>
+                                <input type="password" value={accountPassword} onChange={(e) => setAccountPassword(e.target.value)} placeholder="Mín. 6 caracteres" className={inputCls} />
+                              </div>
+                              <div className="flex gap-2">
+                                <button onClick={handleCreateAccount} disabled={saving} className="btn-brand-primary text-xs flex-1 !py-1.5 disabled:opacity-50">
+                                  {saving ? "Criando…" : "Criar Acesso"}
+                                </button>
+                                <button onClick={() => { setAccountMode("check"); setAccountPassword(""); }} className="text-xs text-txt-muted hover:underline">Voltar</button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

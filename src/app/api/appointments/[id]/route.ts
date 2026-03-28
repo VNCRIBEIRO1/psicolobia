@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { appointments } from "@/db/schema";
+import { appointments, patients } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { createNotification } from "@/lib/notifications";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -23,6 +24,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const body = await req.json();
     const { date, startTime, endTime, modality, status, notes, meetingUrl } = body;
 
+    // Get current appointment to detect status changes
+    const [current] = await db.select().from(appointments).where(eq(appointments.id, id));
+
     const [updated] = await db.update(appointments).set({
       ...(date !== undefined && { date }),
       ...(startTime !== undefined && { startTime }),
@@ -37,6 +41,24 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!updated) {
       return NextResponse.json({ error: "Agendamento não encontrado." }, { status: 404 });
     }
+
+    // Notify on status change
+    if (status !== undefined && current && current.status !== status) {
+      const statusLabels: Record<string, string> = {
+        pending: "Pendente", confirmed: "Confirmada", cancelled: "Cancelada",
+        completed: "Realizada", no_show: "Não compareceu",
+      };
+      const [pat] = await db.select({ name: patients.name }).from(patients).where(eq(patients.id, updated.patientId));
+      await createNotification({
+        type: "status_change",
+        title: `Sessão ${statusLabels[status] || status}`,
+        message: `Sessão de ${pat?.name || "paciente"} em ${updated.date} atualizada: ${statusLabels[current.status] || current.status} → ${statusLabels[status] || status}.`,
+        patientId: updated.patientId,
+        appointmentId: updated.id,
+        linkUrl: `/admin/agenda`,
+      });
+    }
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error("PUT /api/appointments/[id] error:", error);

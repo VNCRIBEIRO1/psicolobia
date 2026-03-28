@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { payments, patients } from "@/db/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { requireAdmin } from "@/lib/api-auth";
+import { createNotification } from "@/lib/notifications";
 
 export async function GET(req: NextRequest) {
   try {
@@ -56,6 +57,17 @@ export async function POST(req: NextRequest) {
       status: "pending",
     }).returning();
 
+    // Notify about new payment created
+    const [pat] = await db.select({ name: patients.name }).from(patients).where(eq(patients.id, patientId));
+    await createNotification({
+      type: "payment",
+      title: "Cobrança criada",
+      message: `Cobrança de R$ ${Number(amount).toFixed(2)} criada para ${pat?.name || "paciente"}.`,
+      patientId,
+      paymentId: newPayment.id,
+      linkUrl: `/admin/financeiro`,
+    });
+
     return NextResponse.json(newPayment, { status: 201 });
   } catch (error) {
     console.error("POST /api/payments error:", error);
@@ -87,6 +99,21 @@ export async function PUT(req: NextRequest) {
     if (!updated) {
       return NextResponse.json({ error: "Pagamento não encontrado." }, { status: 404 });
     }
+
+    // Notify about payment status change
+    if (status !== undefined) {
+      const statusLabels: Record<string, string> = { pending: "Pendente", paid: "Pago", overdue: "Atrasado", cancelled: "Cancelado", refunded: "Reembolsado" };
+      const [pat] = await db.select({ name: patients.name }).from(patients).where(eq(patients.id, updated.patientId));
+      await createNotification({
+        type: "payment",
+        title: `Pagamento ${statusLabels[status] || status}`,
+        message: `Pagamento de R$ ${Number(updated.amount).toFixed(2)} de ${pat?.name || "paciente"} atualizado para ${statusLabels[status] || status}.`,
+        patientId: updated.patientId,
+        paymentId: updated.id,
+        linkUrl: `/admin/financeiro`,
+      });
+    }
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error("PUT /api/payments error:", error);

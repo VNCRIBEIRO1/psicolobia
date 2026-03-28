@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { appointments, patients } from "@/db/schema";
 import { eq, desc, and, ne } from "drizzle-orm";
 import { requireAuth } from "@/lib/api-auth";
+import { createNotification } from "@/lib/notifications";
 
 export async function GET() {
   try {
@@ -99,6 +100,16 @@ export async function POST(req: NextRequest) {
         status: "pending",
       })
       .returning();
+
+    // Notify admin about new appointment from patient
+    await createNotification({
+      type: "appointment",
+      title: "Novo agendamento",
+      message: `${patient.name} solicitou agendamento para ${date} às ${startTime}.`,
+      patientId: patient.id,
+      appointmentId: newAppointment.id,
+      linkUrl: `/admin/agenda`,
+    });
 
     return NextResponse.json(newAppointment, { status: 201 });
   } catch (error) {

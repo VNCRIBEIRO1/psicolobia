@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { users, patients } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { createNotification } from "@/lib/notifications";
 
 export async function POST(request: Request) {
   try {
@@ -39,6 +40,8 @@ export async function POST(request: Request) {
       .where(eq(patients.email, email))
       .limit(1);
 
+    let patientId: string | undefined;
+
     if (existingPatient && !existingPatient.userId) {
       // Link existing patient to new user account
       await db.update(patients).set({
@@ -46,15 +49,26 @@ export async function POST(request: Request) {
         phone: phone || existingPatient.phone,
         updatedAt: new Date(),
       }).where(eq(patients.id, existingPatient.id));
+      patientId = existingPatient.id;
     } else if (!existingPatient) {
       // Create new patient record
-      await db.insert(patients).values({
+      const [newPatient] = await db.insert(patients).values({
         userId: newUser.id,
         name,
         email,
         phone: phone || "",
-      });
+      }).returning();
+      patientId = newPatient.id;
     }
+
+    // Notify admin about new registration
+    await createNotification({
+      type: "registration",
+      title: "Novo paciente cadastrado",
+      message: `${name} (${email}) se cadastrou no portal.${existingPatient ? " Vinculado a cadastro existente." : ""}`,
+      patientId,
+      linkUrl: patientId ? `/admin/pacientes/${patientId}` : `/admin/pacientes`,
+    });
 
     return NextResponse.json({ message: "Conta criada com sucesso!" }, { status: 201 });
   } catch (error) {
