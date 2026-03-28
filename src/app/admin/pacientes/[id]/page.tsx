@@ -6,6 +6,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 
 type Patient = {
   id: string;
+  userId: string | null;
   name: string;
   email: string | null;
   phone: string;
@@ -95,6 +96,9 @@ export default function PacienteDetalhePage() {
   const [showNewSession, setShowNewSession] = useState(false);
   const [toast, setToast] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showCreateAccount, setShowCreateAccount] = useState(false);
+  const [accountPassword, setAccountPassword] = useState("");
+  const [accountEmail, setAccountEmail] = useState("");
 
   const fetchAll = async () => {
     setLoading(true);
@@ -159,6 +163,37 @@ export default function PacienteDetalhePage() {
         flash("Dados atualizados com sucesso! ✅");
       } else flash("Erro ao salvar alterações.");
     } catch { flash("Erro de conexão."); }
+    setSaving(false);
+  };
+
+  /* ---- Create portal account ---- */
+  const handleCreateAccount = async () => {
+    if (!accountPassword || accountPassword.length < 6) {
+      flash("Senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/patients/${id}/create-account`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: accountEmail || patient?.email,
+          password: accountPassword,
+        }),
+      });
+      if (res.ok) {
+        flash("Acesso ao portal criado com sucesso! ✅");
+        setShowCreateAccount(false);
+        setAccountPassword("");
+        fetchAll();
+      } else {
+        const data = await res.json();
+        flash(data.error || "Erro ao criar acesso.");
+      }
+    } catch {
+      flash("Erro de conexão.");
+    }
     setSaving(false);
   };
 
@@ -311,6 +346,63 @@ export default function PacienteDetalhePage() {
                 <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[0.68rem] font-bold ${patient.active ? "bg-green-100 text-green-600" : "bg-red-100 text-red-500"}`}>
                   {patient.active ? "Ativo" : "Inativo"}
                 </span>
+
+                {/* Portal Access */}
+                <div className="mt-4 pt-4 border-t border-primary/5">
+                  <p className="text-xs font-bold text-txt mb-2">🌐 Acesso ao Portal</p>
+                  {patient.userId ? (
+                    <div className="bg-green-50 border border-green-200 rounded-brand-sm p-3">
+                      <p className="text-xs text-green-700 font-semibold">✅ Paciente tem acesso</p>
+                      <p className="text-[0.65rem] text-green-600 mt-0.5">Login: {patient.email}</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-brand-sm p-3 mb-2">
+                        <p className="text-xs text-yellow-700">⚠️ Sem acesso ao portal</p>
+                        <p className="text-[0.65rem] text-yellow-600 mt-0.5">Paciente não pode fazer login</p>
+                      </div>
+                      {!showCreateAccount ? (
+                        <button
+                          onClick={() => { setShowCreateAccount(true); setAccountEmail(patient.email || ""); }}
+                          className="btn-brand-primary text-xs w-full !py-2"
+                        >
+                          🔑 Criar Acesso ao Portal
+                        </button>
+                      ) : (
+                        <div className="bg-blue-50 border border-blue-200 rounded-brand-sm p-3 space-y-2">
+                          <div>
+                            <label className="block text-xs font-bold mb-1">E-mail de login</label>
+                            <input
+                              type="email"
+                              value={accountEmail}
+                              onChange={(e) => setAccountEmail(e.target.value)}
+                              placeholder="email@exemplo.com"
+                              className={inputCls}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold mb-1">Senha temporária *</label>
+                            <input
+                              type="password"
+                              value={accountPassword}
+                              onChange={(e) => setAccountPassword(e.target.value)}
+                              placeholder="Mín. 6 caracteres"
+                              className={inputCls}
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={handleCreateAccount} disabled={saving} className="btn-brand-primary text-xs flex-1 !py-1.5 disabled:opacity-50">
+                              {saving ? "Criando…" : "Criar Acesso"}
+                            </button>
+                            <button onClick={() => setShowCreateAccount(false)} className="text-xs text-txt-muted hover:underline">
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}

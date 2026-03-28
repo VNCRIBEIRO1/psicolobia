@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { appointments, patients } from "@/db/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, ne } from "drizzle-orm";
 import { requireAuth } from "@/lib/api-auth";
 
 export async function GET() {
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check for booking conflicts (any appointment at the same date+time that isn't cancelled)
+    // Check for booking conflicts (exclude cancelled appointments)
     const existing = await db
       .select({ id: appointments.id })
       .from(appointments)
@@ -75,15 +75,12 @@ export async function POST(req: NextRequest) {
         and(
           eq(appointments.date, date),
           eq(appointments.startTime, startTime),
+          ne(appointments.status, "cancelled"),
         )
       )
       .limit(1);
 
-    const conflict = existing.filter(
-      () => true // returned rows are active bookings at that slot
-    );
-
-    if (conflict.length > 0) {
+    if (existing.length > 0) {
       return NextResponse.json(
         { error: "Este horário já está ocupado. Escolha outro horário." },
         { status: 409 }

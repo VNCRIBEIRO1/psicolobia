@@ -7,6 +7,7 @@ export default function NovoPacientePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [createAccount, setCreateAccount] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -25,6 +26,8 @@ export default function NovoPacientePage() {
       emergencyContact: form.get("emergencyContact") as string,
       emergencyPhone: form.get("emergencyPhone") as string,
       notes: form.get("notes") as string,
+      createAccount,
+      password: createAccount ? (form.get("password") as string) : undefined,
     };
 
     try {
@@ -132,6 +135,34 @@ export default function NovoPacientePage() {
           <label className="block text-xs font-bold mb-1.5">Observações</label>
           <textarea name="notes" rows={3} placeholder="Observações iniciais sobre o paciente..."
             className="w-full py-2.5 px-3 border-[1.5px] border-primary/15 rounded-brand-sm font-body text-sm bg-white text-txt focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 resize-y" />
+        </div>
+
+        {/* Create Portal Access */}
+        <div className="border-t border-primary/10 pt-5">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={createAccount}
+              onChange={(e) => setCreateAccount(e.target.checked)}
+              className="w-4 h-4 rounded border-primary/30 text-primary focus:ring-primary/20"
+            />
+            <div>
+              <span className="text-xs font-bold text-txt">🔑 Criar acesso ao portal do paciente</span>
+              <p className="text-[0.65rem] text-txt-muted">O paciente poderá fazer login e agendar sessões, ver pagamentos, etc.</p>
+            </div>
+          </label>
+
+          {createAccount && (
+            <div className="mt-3 ml-7 p-4 bg-blue-50 border border-blue-200 rounded-brand-sm space-y-3">
+              <p className="text-xs text-blue-800 font-semibold">⚠️ O e-mail informado acima será usado como login.</p>
+              <div>
+                <label className="block text-xs font-bold mb-1.5">Senha do Portal *</label>
+                <input name="password" type="password" required={createAccount} placeholder="Mínimo 6 caracteres"
+                  className="w-full py-2.5 px-3 border-[1.5px] border-primary/15 rounded-brand-sm font-body text-sm bg-white text-txt focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" />
+              </div>
+              <p className="text-[0.65rem] text-blue-700">💡 Informe ao paciente para trocar a senha após o primeiro acesso.</p>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-3">

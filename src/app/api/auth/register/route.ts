@@ -32,13 +32,29 @@ export async function POST(request: Request) {
       phone: phone || null,
     }).returning();
 
-    // Also create the patients record linked to this user
-    await db.insert(patients).values({
-      userId: newUser.id,
-      name,
-      email,
-      phone: phone || "",
-    });
+    // Check if patient record already exists (admin may have pre-created it)
+    const [existingPatient] = await db
+      .select()
+      .from(patients)
+      .where(eq(patients.email, email))
+      .limit(1);
+
+    if (existingPatient && !existingPatient.userId) {
+      // Link existing patient to new user account
+      await db.update(patients).set({
+        userId: newUser.id,
+        phone: phone || existingPatient.phone,
+        updatedAt: new Date(),
+      }).where(eq(patients.id, existingPatient.id));
+    } else if (!existingPatient) {
+      // Create new patient record
+      await db.insert(patients).values({
+        userId: newUser.id,
+        name,
+        email,
+        phone: phone || "",
+      });
+    }
 
     return NextResponse.json({ message: "Conta criada com sucesso!" }, { status: 201 });
   } catch (error) {

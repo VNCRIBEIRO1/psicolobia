@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { patients } from "@/db/schema";
-import { ilike, or, desc } from "drizzle-orm";
+import { patients, users } from "@/db/schema";
+import { ilike, or, desc, eq } from "drizzle-orm";
 import { requireAdmin } from "@/lib/api-auth";
+import bcrypt from "bcryptjs";
 
 export async function GET(req: NextRequest) {
   try {
@@ -38,13 +39,38 @@ export async function POST(req: NextRequest) {
     if (auth.error) return auth.response;
 
     const body = await req.json();
-    const { name, email, phone, cpf, birthDate, gender, address, emergencyContact, emergencyPhone, notes } = body;
+    const { name, email, phone, cpf, birthDate, gender, address, emergencyContact, emergencyPhone, notes, createAccount, password } = body;
 
     if (!name || !phone) {
       return NextResponse.json({ error: "Nome e telefone são obrigatórios." }, { status: 400 });
     }
 
+    let userId: string | null = null;
+
+    // If admin wants to create portal access for the patient
+    if (createAccount && email) {
+      if (!password || password.length < 6) {
+        return NextResponse.json({ error: "Senha de pelo menos 6 caracteres é necessária para criar acesso ao portal." }, { status: 400 });
+      }
+
+      const [existingUser] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      if (existingUser) {
+        return NextResponse.json({ error: "Já existe uma conta com este e-mail." }, { status: 409 });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 12);
+      const [newUser] = await db.insert(users).values({
+        name,
+        email,
+        password: hashedPassword,
+        role: "patient",
+        phone: phone || null,
+      }).returning();
+      userId = newUser.id;
+    }
+
     const [newPatient] = await db.insert(patients).values({
+      userId,
       name,
       email: email || null,
       phone,
@@ -57,7 +83,7 @@ export async function POST(req: NextRequest) {
       notes: notes || null,
     }).returning();
 
-    return NextResponse.json(newPatient, { status: 201 });
+    return NextResponse.json({ ...newPatient, hasAccount: !!userId }, { status: 201 });
   } catch (error) {
     console.error("POST /api/patients error:", error);
     return NextResponse.json({ error: "Erro ao criar paciente." }, { status: 500 });
