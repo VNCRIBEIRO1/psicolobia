@@ -72,7 +72,8 @@ export default function SalaEsperaPage() {
   };
 
   const allChecked = Object.values(checklist).every(Boolean);
-  const canEnter = seconds !== null && seconds <= 900; // Allow entry 15 min before
+  const hasMeetingUrl = !!apt?.meetingUrl;
+  const canEnter = seconds !== null && seconds <= 900 && hasMeetingUrl; // Allow entry 15 min before + requires meeting link
 
   const formatCountdown = (s: number) => {
     const h = Math.floor(s / 3600);
@@ -342,6 +343,14 @@ export default function SalaEsperaPage() {
         </div>
       </div>
 
+      {/* No meeting link warning */}
+      {isOnline && !hasMeetingUrl && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-brand p-4 mb-6 text-center">
+          <p className="text-sm text-yellow-800 font-medium">⏳ O link da videochamada será liberado pela Bea antes da sessão.</p>
+          <p className="text-xs text-yellow-600 mt-1">Quando o link estiver disponível, o botão para entrar será habilitado automaticamente.</p>
+        </div>
+      )}
+
       {/* Enter Session Button */}
       {isOnline && (
         <div className="text-center mb-8">
@@ -354,7 +363,12 @@ export default function SalaEsperaPage() {
           >
             📹 Entrar na Sessão
           </button>
-          {!canEnter && seconds !== null && (
+          {!canEnter && seconds !== null && !hasMeetingUrl && (
+            <p className="text-xs text-yellow-600 mt-2">
+              Aguardando a psicóloga liberar o link da videochamada.
+            </p>
+          )}
+          {!canEnter && seconds !== null && hasMeetingUrl && seconds > 900 && (
             <p className="text-xs text-txt-muted mt-2">
               Disponível 15 minutos antes do horário da sessão.
             </p>

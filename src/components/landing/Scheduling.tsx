@@ -41,6 +41,7 @@ export function Scheduling() {
   const [pricing, setPricing] = useState<PricingItem[]>([]);
   const [loadingAvail, setLoadingAvail] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [bookedSlots, setBookedSlots] = useState<{date: string; startTime: string}[]>([]);
 
   // Form fields for anonymous user
   const [formName, setFormName] = useState("");
@@ -62,6 +63,12 @@ export function Scheduling() {
       .then((d) => {
         if (d?.value && Array.isArray(d.value)) setPricing(d.value as PricingItem[]);
       })
+      .catch(() => {});
+
+    // Fetch booked slots to filter conflicts
+    fetch("/api/portal/booked-slots")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => { if (Array.isArray(d)) setBookedSlots(d); })
       .catch(() => {});
   }, []);
 
@@ -95,7 +102,7 @@ export function Scheduling() {
     setSelSlot(null);
   }, [year, month]);
 
-  // Generate available time slots for selected date
+  // Generate available time slots for selected date (filter booked)
   const availableSlots = selDate
     ? (() => {
         const dow = selDate.getDay();
@@ -104,7 +111,12 @@ export function Scheduling() {
         daySlots.forEach((s) => {
           allSlots.push(...generateTimeSlots(s.startTime, s.endTime));
         });
-        return [...new Set(allSlots)].sort();
+        const unique = [...new Set(allSlots)].sort();
+        // Filter out booked slots
+        const dateStr = `${selDate.getFullYear()}-${String(selDate.getMonth() + 1).padStart(2, "0")}-${String(selDate.getDate()).padStart(2, "0")}`;
+        return unique.filter(
+          (t) => !bookedSlots.some((b) => b.date === dateStr && b.startTime === t)
+        );
       })()
     : [];
 

@@ -209,6 +209,14 @@ export const triages = pgTable("triages", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+/* ========== BLOCKED DATES (admin blocks specific dates) ========== */
+export const blockedDates = pgTable("blocked_dates", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  date: date("date").notNull(),
+  reason: varchar("reason", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 /* ========== SETTINGS (key-value store for pricing, areas, config) ========== */
 export const settings = pgTable("settings", {
   id: uuid("id").defaultRandom().primaryKey(),

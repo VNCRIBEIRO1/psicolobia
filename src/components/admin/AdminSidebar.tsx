@@ -9,6 +9,7 @@ const menuItems = [
   { href: "/admin", icon: "📊", label: "Dashboard" },
   { href: "/admin/pacientes", icon: "👥", label: "Pacientes" },
   { href: "/admin/agenda", icon: "📅", label: "Agenda" },
+  { href: "/admin/horarios", icon: "🕐", label: "Horários" },
   { href: "/admin/financeiro", icon: "💰", label: "Financeiro" },
   { href: "/admin/prontuarios", icon: "📋", label: "Prontuários" },
   { href: "/admin/blog", icon: "✍️", label: "Blog" },

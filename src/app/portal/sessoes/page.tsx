@@ -117,13 +117,18 @@ export default function PortalSessoesPage() {
                   >
                     🏠 Sala de Espera
                   </Link>
-                  {a.status === "confirmed" && a.modality === "online" && (
+                  {a.status === "confirmed" && a.modality === "online" && a.meetingUrl && (
                     <Link
                       href={`/portal/sala-espera/${a.id}`}
                       className="px-3 py-1.5 rounded-brand-sm text-xs font-bold bg-green-100 text-green-700 border border-green-200 hover:bg-green-200 transition-colors"
                     >
                       📹 Entrar na Sessão
                     </Link>
+                  )}
+                  {a.status === "confirmed" && a.modality === "online" && !a.meetingUrl && (
+                    <span className="px-3 py-1.5 rounded-brand-sm text-xs font-medium bg-yellow-50 text-yellow-600 border border-yellow-200">
+                      ⏳ Link será liberado pela psicóloga
+                    </span>
                   )}
                 </div>
               </div>
@@ -179,9 +184,12 @@ export default function PortalSessoesPage() {
                               className="text-xs text-primary-dark font-bold hover:underline">Sala de Espera</Link>
                           </>
                         )}
-                        {a.status === "confirmed" && a.modality === "online" && (
+                        {a.status === "confirmed" && a.modality === "online" && a.meetingUrl && (
                           <Link href={`/portal/sala-espera/${a.id}`}
                             className="text-xs text-green-600 font-bold hover:underline">Entrar →</Link>
+                        )}
+                        {a.status === "confirmed" && a.modality === "online" && !a.meetingUrl && (
+                          <span className="text-xs text-yellow-600">⏳ Link pendente</span>
                         )}
                         {a.status === "pending" && (
                           <span className="text-xs text-yellow-600">Aguardando confirmação</span>
