@@ -1,7 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { signIn, signOut, getSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -10,7 +10,7 @@ const ROLE_LABELS: Record<string, string> = {
   patient: "Paciente",
 };
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -22,6 +22,16 @@ export default function LoginPage() {
     role?: string;
   } | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Read redirect params (from booking flow via /registro)
+  const redirectTo = searchParams.get("redirect") || "";
+  const bookingDate = searchParams.get("date") || "";
+  const bookingTime = searchParams.get("time") || "";
+  const bookingModality = searchParams.get("modality") || "";
+  const bookingNotes = searchParams.get("notes") || "";
+  const isRegistered = searchParams.get("registered") === "true";
+  const hasBooking = !!(bookingDate && bookingTime && redirectTo);
 
   // Check for existing session on mount
   useEffect(() => {
@@ -55,9 +65,18 @@ export default function LoginPage() {
       return;
     }
 
-    // Redirect based on role
+    // Redirect based on role + booking flow
     const session = await getSession();
-    if (session?.user?.role === "patient") {
+    if (hasBooking && session?.user?.role === "patient") {
+      // Build redirect URL with booking params
+      const params = new URLSearchParams({
+        date: bookingDate,
+        time: bookingTime,
+        modality: bookingModality,
+        ...(bookingNotes ? { notes: bookingNotes } : {}),
+      });
+      router.push(`${redirectTo}?${params.toString()}`);
+    } else if (session?.user?.role === "patient") {
       router.push("/portal");
     } else {
       router.push("/admin");
@@ -77,6 +96,31 @@ export default function LoginPage() {
           <h1 className="font-heading text-2xl font-bold text-txt">Entrar no Psicolobia</h1>
           <p className="text-sm text-txt-light mt-1">Acesse o painel administrativo ou portal do paciente</p>
         </div>
+
+        {/* Registration success + booking banner */}
+        {isRegistered && hasBooking && (
+          <div className="bg-green-50 border border-green-200 rounded-brand p-5 mb-5">
+            <div className="flex items-start gap-3">
+              <span className="text-xl mt-0.5">✅</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-green-900 mb-1">Conta criada com sucesso!</p>
+                <p className="text-xs text-green-700 mb-1">
+                  📅 Agendamento: {bookingDate} às {bookingTime} • {bookingModality === "presencial" ? "Presencial" : "Online"}
+                </p>
+                <p className="text-xs text-green-600">
+                  Faça login abaixo para finalizar seu agendamento.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isRegistered && !hasBooking && (
+          <div className="bg-green-50 border border-green-200 rounded-brand p-4 mb-5 text-center">
+            <p className="text-sm font-bold text-green-800">✅ Conta criada com sucesso!</p>
+            <p className="text-xs text-green-600 mt-1">Faça login para acessar o portal.</p>
+          </div>
+        )}
 
         {/* Existing session banner */}
         {existingSession && !checkingSession && (
@@ -162,5 +206,17 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <p className="text-sm text-txt-muted">Carregando…</p>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

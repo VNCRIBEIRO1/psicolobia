@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
       .select({
         appointment: appointments,
         patientName: patients.name,
+        patientPhone: patients.phone,
       })
       .from(appointments)
       .leftJoin(patients, eq(appointments.patientId, patients.id))

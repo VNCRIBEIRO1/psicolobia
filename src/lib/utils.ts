@@ -68,6 +68,29 @@ export function slugify(text: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
+/**
+ * Clean a phone number for WhatsApp wa.me links.
+ * Strips all non-digits, prepends 55 (Brazil) if missing country code.
+ */
+export function cleanPhoneForWhatsApp(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  // If starts with 55 and has 12-13 digits, it's already full
+  if (digits.startsWith("55") && digits.length >= 12) return digits;
+  // If 10-11 digits (DDD + number), prepend 55
+  if (digits.length >= 10 && digits.length <= 11) return `55${digits}`;
+  // Fallback: return as-is
+  return digits;
+}
+
+/**
+ * Build a WhatsApp wa.me URL with an optional pre-filled message.
+ */
+export function buildWhatsAppUrl(phone: string, message?: string): string {
+  const clean = cleanPhoneForWhatsApp(phone);
+  const base = `https://wa.me/${clean}`;
+  return message ? `${base}?text=${encodeURIComponent(message)}` : base;
+}
+
 export const WHATSAPP_LINK = "https://wa.me/5511988840525";
 export const INSTAGRAM_URL = "https://www.instagram.com/psicolobiaa";
 export const TIKTOK_URL = "https://www.tiktok.com/@psicolobiaa";

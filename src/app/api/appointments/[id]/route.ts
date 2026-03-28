@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { appointments, patients } from "@/db/schema";
+import { appointments, patients, payments, settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { createNotification } from "@/lib/notifications";
 
@@ -57,6 +57,50 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         appointmentId: updated.id,
         linkUrl: `/admin/agenda`,
       });
+
+      // Auto-create pending payment when confirmed
+      if (status === "confirmed" && current.status !== "confirmed") {
+        try {
+          // Fetch pricing from settings
+          let amount = "0";
+          const [pricingRow] = await db.select().from(settings).where(eq(settings.key, "pricing"));
+          if (pricingRow) {
+            try {
+              const pricingList = JSON.parse(pricingRow.value) as { key: string; value: string }[];
+              // Match modality: online → individual_online, presencial → individual_presencial
+              const modalityKey = updated.modality === "presencial" ? "individual_presencial" : "individual_online";
+              const match = pricingList.find((p) => p.key === modalityKey);
+              if (match && Number(match.value) > 0) {
+                amount = match.value;
+              }
+            } catch { /* pricing parse error, default to 0 */ }
+          }
+
+          const [newPayment] = await db.insert(payments).values({
+            patientId: updated.patientId,
+            appointmentId: updated.id,
+            amount,
+            method: "pix",
+            status: "pending",
+            dueDate: updated.date,
+            description: `Sessão ${updated.modality === "presencial" ? "presencial" : "online"} — ${updated.date}`,
+          }).returning();
+
+          if (newPayment) {
+            await createNotification({
+              type: "payment",
+              title: "Cobrança criada automaticamente",
+              message: `Cobrança de R$ ${Number(amount).toFixed(2)} criada para ${pat?.name || "paciente"} (sessão confirmada em ${updated.date}).`,
+              patientId: updated.patientId,
+              paymentId: newPayment.id,
+              linkUrl: `/admin/financeiro`,
+            });
+          }
+        } catch (payErr) {
+          console.error("Auto-create payment error:", payErr);
+          // Don't fail the status update if payment creation fails
+        }
+      }
     }
 
     return NextResponse.json(updated);

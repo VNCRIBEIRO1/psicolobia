@@ -8,6 +8,7 @@ type PaymentRow = {
 };
 
 type PatientOption = { id: string; name: string };
+type PricingItem = { label: string; key: string; duration: string; value: string };
 
 const statusLabel: Record<string, string> = {
   pending: "Pendente", paid: "Pago", overdue: "Atrasado",
@@ -29,11 +30,14 @@ const inputCls =
 export default function FinanceiroPage() {
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [patients, setPatients] = useState<PatientOption[]>([]);
+  const [pricing, setPricing] = useState<PricingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editPayment, setEditPayment] = useState<PaymentRow | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
+  const [newAmount, setNewAmount] = useState("");
+  const [selectedPricing, setSelectedPricing] = useState("");
 
   const fetchPayments = () => {
     setLoading(true);
@@ -51,9 +55,28 @@ export default function FinanceiroPage() {
       .catch(() => setPatients([]));
   };
 
-  useEffect(() => { fetchPayments(); fetchPatients(); }, []);
+  const fetchPricing = () => {
+    fetch("/api/settings?key=pricing")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.value && Array.isArray(d.value)) {
+          setPricing(d.value as PricingItem[]);
+        }
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => { fetchPayments(); fetchPatients(); fetchPricing(); }, []);
 
   const flash = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
+
+  const handlePricingSelect = (key: string) => {
+    setSelectedPricing(key);
+    if (key) {
+      const item = pricing.find((p) => p.key === key);
+      if (item) setNewAmount(item.value);
+    }
+  };
 
   const paid = payments.filter((p) => p.payment.status === "paid");
   const pending = payments.filter((p) => p.payment.status === "pending");
@@ -66,13 +89,14 @@ export default function FinanceiroPage() {
     e.preventDefault();
     setSaving(true);
     const fd = new FormData(e.currentTarget);
+    const amount = newAmount || fd.get("amount");
     try {
       const res = await fetch("/api/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           patientId: fd.get("patientId"),
-          amount: fd.get("amount"),
+          amount,
           method: fd.get("method"),
           dueDate: fd.get("dueDate") || null,
           description: fd.get("description") || null,
@@ -81,6 +105,8 @@ export default function FinanceiroPage() {
       if (res.ok) {
         flash("Pagamento registrado! ✅");
         setShowModal(false);
+        setNewAmount("");
+        setSelectedPricing("");
         fetchPayments();
       } else {
         const body = await res.json().catch(() => ({}));
@@ -138,6 +164,22 @@ export default function FinanceiroPage() {
           <p className="text-xs text-txt-muted mt-1">{overdue.length} pagamento(s)</p>
         </div>
       </div>
+
+      {/* Pricing Reference */}
+      {pricing.length > 0 && (
+        <div className="bg-white rounded-brand p-5 shadow-sm border border-primary/5 mb-8">
+          <h3 className="text-xs font-bold text-txt-muted uppercase tracking-wide mb-3">💰 Tabela de Preços (Configurações)</h3>
+          <div className="flex flex-wrap gap-3">
+            {pricing.map((p) => (
+              <div key={p.key} className="bg-bg/50 rounded-brand-sm px-4 py-2.5 border border-primary/5">
+                <p className="text-xs font-bold text-txt">{p.label}</p>
+                <p className="text-sm font-bold text-primary-dark mt-0.5">R$ {Number(p.value).toFixed(2)}</p>
+                <p className="text-[0.65rem] text-txt-muted">{p.duration}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Payments Table */}
       <div className="bg-white rounded-brand shadow-sm border border-primary/5 overflow-hidden">
@@ -202,7 +244,7 @@ export default function FinanceiroPage() {
           <div className="bg-white rounded-brand p-8 shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-heading text-lg font-semibold text-txt">Novo Pagamento</h3>
-              <button onClick={() => setShowModal(false)} className="text-txt-muted hover:text-txt text-lg">✕</button>
+              <button onClick={() => { setShowModal(false); setNewAmount(""); setSelectedPricing(""); }} className="text-txt-muted hover:text-txt text-lg">✕</button>
             </div>
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
@@ -212,9 +254,54 @@ export default function FinanceiroPage() {
                   {patients.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
+              {pricing.length > 0 && (
+                <div>
+                  <label className="block text-xs font-bold mb-1.5">Tipo de Sessão (referência de preço)</label>
+                  <select
+                    value={selectedPricing}
+                    onChange={(e) => handlePricingSelect(e.target.value)}
+                    className={inputCls}
+                  >
+                    <option value="">Selecionar tipo (opcional)</option>
+                    {pricing.map((p) => (
+                      <option key={p.key} value={p.key}>
+                        {p.label} — {p.duration} — R$ {Number(p.value).toFixed(2)}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedPricing && (
+                    <p className="text-xs text-green-600 mt-1">
+                      💰 Valor preenchido automaticamente: R$ {Number(newAmount).toFixed(2)}
+                    </p>
+                  )}
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-bold mb-1.5">Valor (R$) *</label>
-                <input name="amount" type="number" step="0.01" required placeholder="150.00" className={inputCls} />
+                <input
+                  name="amount"
+                  type="number"
+                  step="0.01"
+                  required
+                  placeholder="150.00"
+                  value={newAmount}
+                  onChange={(e) => { setNewAmount(e.target.value); setSelectedPricing(""); }}
+                  className={inputCls}
+                />
+                {pricing.length > 0 && !selectedPricing && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {pricing.map((p) => (
+                      <button
+                        key={p.key}
+                        type="button"
+                        onClick={() => { setNewAmount(p.value); setSelectedPricing(p.key); }}
+                        className="text-[0.65rem] px-2 py-1 bg-primary/5 text-primary-dark border border-primary/15 rounded-brand-sm hover:bg-primary/10 transition-colors"
+                      >
+                        {p.label}: R$ {Number(p.value).toFixed(2)}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-bold mb-1.5">Método de Pagamento</label>
@@ -238,7 +325,7 @@ export default function FinanceiroPage() {
                 <button type="submit" disabled={saving} className="btn-brand-primary flex-1 disabled:opacity-50">
                   {saving ? "Salvando…" : "Registrar Pagamento 🌿"}
                 </button>
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2.5 border-[1.5px] border-primary/15 rounded-brand-sm text-sm text-txt hover:bg-bg transition-colors">
+                <button type="button" onClick={() => { setShowModal(false); setNewAmount(""); setSelectedPricing(""); }} className="px-4 py-2.5 border-[1.5px] border-primary/15 rounded-brand-sm text-sm text-txt hover:bg-bg transition-colors">
                   Cancelar
                 </button>
               </div>

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { formatDate } from "@/lib/utils";
+import { formatDate, buildWhatsAppUrl } from "@/lib/utils";
 import { buildMeetingUrl } from "@/lib/jitsi";
 
 const MONTHS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -10,6 +10,7 @@ type Appointment = {
   id: string;
   patientId: string;
   patientName?: string;
+  patientPhone?: string;
   date: string;
   startTime: string;
   endTime: string;
@@ -39,6 +40,29 @@ const dotColor: Record<string, string> = {
 const inputCls =
   "w-full py-2.5 px-3 border-[1.5px] border-primary/15 rounded-brand-sm font-body text-sm bg-white text-txt focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10";
 
+function buildReminderMessage(apt: Appointment): string {
+  const dateBR = new Date(apt.date + "T00:00:00").toLocaleDateString("pt-BR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+  });
+  const modalityText = apt.modality === "presencial" ? "Presencial" : "Online (videochamada)";
+  let msg = `🌿 *Lembrete de Sessão — Psicolobia*\n\n` +
+    `Olá, ${apt.patientName || ""}! 😊\n\n` +
+    `Passando para lembrar da sua sessão:\n\n` +
+    `📅 *Data:* ${dateBR}\n` +
+    `⏰ *Horário:* ${apt.startTime} às ${apt.endTime}\n` +
+    `📍 *Modalidade:* ${modalityText}\n`;
+
+  if (apt.modality === "online" && apt.meetingUrl) {
+    msg += `\n🔗 *Link da videochamada:*\n${apt.meetingUrl}\n`;
+  }
+
+  msg += `\nCaso precise remarcar, me avise com antecedência. ` +
+    `Te espero! 🌿\n\n— Bea | Psicolobia`;
+  return msg;
+}
+
 export default function AgendaPage() {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth());
@@ -63,6 +87,7 @@ export default function AgendaPage() {
             ? data.map((a: Record<string, unknown>) => ({
                 ...(a.appointment ?? a),
                 patientName: a.patientName,
+                patientPhone: a.patientPhone,
               }) as Appointment)
             : []
         );
@@ -104,7 +129,32 @@ export default function AgendaPage() {
 
   const selectedApts = selectedDate ? appointments.filter((a) => a.date === selectedDate) : [];
 
-  /* Create session */
+  const sendReminder = (apt: Appointment) => {
+    if (!apt.patientPhone) {
+      flash("Paciente sem telefone cadastrado.");
+      return;
+    }
+    const msg = buildReminderMessage(apt);
+    const url = buildWhatsAppUrl(apt.patientPhone, msg);
+    window.open(url, "_blank");
+    flash("WhatsApp aberto com lembrete!");
+  };
+
+  const sendBulkReminders = () => {
+    const toRemind = selectedApts.filter(
+      (a) => (a.status === "confirmed" || a.status === "pending") && a.patientPhone
+    );
+    if (toRemind.length === 0) {
+      flash("Nenhuma sessão com telefone para lembrar.");
+      return;
+    }
+    toRemind.forEach((apt, idx) => {
+      setTimeout(() => {
+        sendReminder(apt);
+      }, idx * 800);
+    });
+  };
+
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSaving(true);
@@ -122,13 +172,12 @@ export default function AgendaPage() {
           notes: fd.get("notes"),
         }),
       });
-      if (res.ok) { flash("Sessão agendada! ✅"); setShowModal(false); fetchAppointments(); }
+      if (res.ok) { flash("Sessão agendada!"); setShowModal(false); fetchAppointments(); }
       else { const b = await res.json().catch(() => ({})); flash((b as Record<string, string>).error || "Erro ao agendar."); }
     } catch { flash("Erro de conexão."); }
     setSaving(false);
   };
 
-  /* Change status */
   const handleStatus = async (apt: Appointment, s: string) => {
     try {
       const res = await fetch(`/api/appointments/${apt.id}`, {
@@ -136,9 +185,63 @@ export default function AgendaPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: s }),
       });
-      if (res.ok) { flash("Status atualizado! ✅"); setShowDetail(null); fetchAppointments(); }
+      if (res.ok) {
+        flash(`Status -> ${statusLabel[s] || s}`);
+        const updated = await res.json();
+        setShowDetail((prev) => prev ? { ...prev, status: s, ...(updated.meetingUrl ? { meetingUrl: updated.meetingUrl } : {}) } : null);
+        fetchAppointments();
+      }
       else flash("Erro ao atualizar status.");
     } catch { flash("Erro de conexão."); }
+  };
+
+  const statusActions = (apt: Appointment) => {
+    const btns: React.ReactNode[] = [];
+    const btnCls = (color: string) =>
+      `text-xs px-3 py-1.5 border rounded-brand-sm font-bold transition-colors ${color}`;
+
+    if (apt.status === "pending") {
+      btns.push(
+        <button key="confirm" onClick={() => handleStatus(apt, "confirmed")}
+          className={btnCls("border-green-200 text-green-700 bg-green-50 hover:bg-green-100")}>
+          Confirmar
+        </button>,
+        <button key="cancel" onClick={() => handleStatus(apt, "cancelled")}
+          className={btnCls("border-red-200 text-red-500 hover:bg-red-50")}>
+          Cancelar
+        </button>,
+      );
+    }
+    if (apt.status === "confirmed") {
+      btns.push(
+        <button key="complete" onClick={() => handleStatus(apt, "completed")}
+          className={btnCls("border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100")}>
+          Realizada
+        </button>,
+        <button key="noshow" onClick={() => handleStatus(apt, "no_show")}
+          className={btnCls("border-gray-200 text-gray-500 hover:bg-gray-100")}>
+          Não Compareceu
+        </button>,
+        <button key="cancel2" onClick={() => handleStatus(apt, "cancelled")}
+          className={btnCls("border-red-200 text-red-500 hover:bg-red-50")}>
+          Cancelar
+        </button>,
+      );
+    }
+    if (apt.status === "cancelled" || apt.status === "no_show") {
+      btns.push(
+        <button key="reopen" onClick={() => handleStatus(apt, "pending")}
+          className={btnCls("border-yellow-200 text-yellow-700 bg-yellow-50 hover:bg-yellow-100")}>
+          Reabrir
+        </button>,
+      );
+    }
+    if (apt.status === "completed") {
+      btns.push(
+        <span key="done" className="text-xs text-blue-600 font-medium">Sessão concluída</span>,
+      );
+    }
+    return btns;
   };
 
   return (
@@ -158,13 +261,12 @@ export default function AgendaPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Calendar */}
         <div className="lg:col-span-2 bg-white rounded-brand p-6 shadow-sm border border-primary/5">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-heading text-lg font-semibold text-txt">{MONTHS[month]} {year}</h3>
             <div className="flex gap-2">
-              <button onClick={() => changeMonth(-1)} className="w-8 h-8 rounded-full border-[1.5px] border-primary bg-transparent text-primary-dark flex items-center justify-center hover:bg-primary hover:text-white transition-colors">‹</button>
-              <button onClick={() => changeMonth(1)} className="w-8 h-8 rounded-full border-[1.5px] border-primary bg-transparent text-primary-dark flex items-center justify-center hover:bg-primary hover:text-white transition-colors">›</button>
+              <button onClick={() => changeMonth(-1)} className="w-8 h-8 rounded-full border-[1.5px] border-primary bg-transparent text-primary-dark flex items-center justify-center hover:bg-primary hover:text-white transition-colors">&lsaquo;</button>
+              <button onClick={() => changeMonth(1)} className="w-8 h-8 rounded-full border-[1.5px] border-primary bg-transparent text-primary-dark flex items-center justify-center hover:bg-primary hover:text-white transition-colors">&rsaquo;</button>
             </div>
           </div>
 
@@ -207,13 +309,23 @@ export default function AgendaPage() {
           </div>
         </div>
 
-        {/* Side Panel */}
         <div className="lg:col-span-1 bg-white rounded-brand p-6 shadow-sm border border-primary/5">
-          <h3 className="font-heading text-base font-semibold text-txt mb-4">
-            {selectedDate ? `📅 ${formatDate(selectedDate)}` : "📅 Selecione um dia"}
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-heading text-base font-semibold text-txt">
+              {selectedDate ? `📅 ${formatDate(selectedDate)}` : "📅 Selecione um dia"}
+            </h3>
+            {selectedDate && selectedApts.filter((a) => a.status === "confirmed" || a.status === "pending").length > 0 && (
+              <button
+                onClick={sendBulkReminders}
+                className="text-[0.65rem] px-2 py-1 bg-[#25D366] text-white rounded-brand-sm font-bold hover:bg-[#1da855] transition-colors flex items-center gap-1"
+                title="Enviar lembrete WhatsApp para todas sessões do dia"
+              >
+                📱 Lembrar Todos
+              </button>
+            )}
+          </div>
           {loading ? (
-            <p className="text-sm text-txt-muted text-center py-8">Carregando…</p>
+            <p className="text-sm text-txt-muted text-center py-8">Carregando...</p>
           ) : !selectedDate ? (
             <p className="text-sm text-txt-muted text-center py-8">Clique em um dia do calendário para ver os agendamentos.</p>
           ) : selectedApts.length === 0 ? (
@@ -223,16 +335,58 @@ export default function AgendaPage() {
               {selectedApts.map((a) => (
                 <div
                   key={a.id}
-                  onClick={() => setShowDetail(a)}
-                  className="p-3 bg-bg/50 rounded-brand-sm border border-primary/5 cursor-pointer hover:border-primary/20 transition-colors"
+                  className="p-3 bg-bg/50 rounded-brand-sm border border-primary/5 hover:border-primary/20 transition-colors"
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-txt">{a.patientName || "Paciente"}</span>
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[0.6rem] font-bold ${statusColor[a.status] || ""}`}>
-                      {statusLabel[a.status] || a.status}
-                    </span>
+                  <div onClick={() => setShowDetail(a)} className="cursor-pointer">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium text-txt">{a.patientName || "Paciente"}</span>
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[0.6rem] font-bold ${statusColor[a.status] || ""}`}>
+                        {statusLabel[a.status] || a.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-txt-muted">{a.startTime} - {a.endTime} | {a.modality}</p>
                   </div>
-                  <p className="text-xs text-txt-muted">{a.startTime} – {a.endTime} • {a.modality}</p>
+                  <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-primary/5">
+                    {(a.status === "confirmed" || a.status === "pending") && a.patientPhone && (
+                      <button
+                        onClick={() => sendReminder(a)}
+                        className="text-[0.6rem] px-2 py-1 bg-[#25D366] text-white rounded-brand-sm font-bold hover:bg-[#1da855] transition-colors"
+                        title="Enviar lembrete via WhatsApp"
+                      >
+                        \ud83d\udcf1 Lembrete
+                      </button>
+                    )}
+                    {a.status === "pending" && (
+                      <>
+                        <button
+                          onClick={() => handleStatus(a, "confirmed")}
+                          className="text-[0.6rem] px-2 py-1 bg-green-50 text-green-700 border border-green-200 rounded-brand-sm font-bold hover:bg-green-100 transition-colors"
+                        >
+                          Confirmar
+                        </button>
+                        <button
+                          onClick={() => handleStatus(a, "cancelled")}
+                          className="text-[0.6rem] px-2 py-1 bg-red-50 text-red-500 border border-red-200 rounded-brand-sm font-bold hover:bg-red-100 transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                      </>
+                    )}
+                    {a.status === "confirmed" && (
+                      <button
+                        onClick={() => handleStatus(a, "completed")}
+                        className="text-[0.6rem] px-2 py-1 bg-blue-50 text-blue-600 border border-blue-200 rounded-brand-sm font-bold hover:bg-blue-100 transition-colors"
+                      >
+                        Concluída
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setShowDetail(a)}
+                      className="text-[0.6rem] px-2 py-1 text-txt-muted border border-primary/10 rounded-brand-sm hover:bg-bg transition-colors ml-auto"
+                    >
+                      Detalhes
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -240,13 +394,12 @@ export default function AgendaPage() {
         </div>
       </div>
 
-      {/* New Session Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
           <div className="bg-white rounded-brand p-8 shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-heading text-lg font-semibold text-txt">Nova Sessão</h3>
-              <button onClick={() => setShowModal(false)} className="text-txt-muted hover:text-txt text-lg">✕</button>
+              <button onClick={() => setShowModal(false)} className="text-txt-muted hover:text-txt text-lg">X</button>
             </div>
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
@@ -279,11 +432,11 @@ export default function AgendaPage() {
               </div>
               <div>
                 <label className="block text-xs font-bold mb-1.5">Observações</label>
-                <textarea name="notes" rows={3} className={inputCls} placeholder="Notas sobre a sessão…" />
+                <textarea name="notes" rows={3} className={inputCls} placeholder="Notas sobre a sessão..." />
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="submit" disabled={saving} className="btn-brand-primary flex-1 disabled:opacity-50">
-                  {saving ? "Agendando…" : "Agendar Sessão 🌿"}
+                  {saving ? "Agendando..." : "Agendar Sessão"}
                 </button>
                 <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2.5 border-[1.5px] border-primary/15 rounded-brand-sm text-sm text-txt hover:bg-bg transition-colors">
                   Cancelar
@@ -294,26 +447,31 @@ export default function AgendaPage() {
         </div>
       )}
 
-      {/* Appointment Detail Modal */}
       {showDetail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
           <div className="bg-white rounded-brand p-8 shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-heading text-lg font-semibold text-txt">Detalhes da Sessão</h3>
-              <button onClick={() => setShowDetail(null)} className="text-txt-muted hover:text-txt text-lg">✕</button>
+              <button onClick={() => setShowDetail(null)} className="text-txt-muted hover:text-txt text-lg">X</button>
             </div>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between py-1.5 border-b border-primary/5">
                 <span className="text-txt-muted">Paciente</span>
-                <span className="text-txt font-medium">{showDetail.patientName || "—"}</span>
+                <span className="text-txt font-medium">{showDetail.patientName || "--"}</span>
               </div>
+              {showDetail.patientPhone && (
+                <div className="flex justify-between py-1.5 border-b border-primary/5">
+                  <span className="text-txt-muted">Telefone</span>
+                  <span className="text-txt">{showDetail.patientPhone}</span>
+                </div>
+              )}
               <div className="flex justify-between py-1.5 border-b border-primary/5">
                 <span className="text-txt-muted">Data</span>
                 <span className="text-txt">{formatDate(showDetail.date)}</span>
               </div>
               <div className="flex justify-between py-1.5 border-b border-primary/5">
                 <span className="text-txt-muted">Horário</span>
-                <span className="text-txt">{showDetail.startTime} – {showDetail.endTime}</span>
+                <span className="text-txt">{showDetail.startTime} - {showDetail.endTime}</span>
               </div>
               <div className="flex justify-between py-1.5 border-b border-primary/5">
                 <span className="text-txt-muted">Modalidade</span>
@@ -333,10 +491,21 @@ export default function AgendaPage() {
               )}
             </div>
 
-            {/* Jitsi Video Call Link */}
+            {showDetail.patientPhone && (showDetail.status === "confirmed" || showDetail.status === "pending") && (
+              <div className="mt-4 pt-4 border-t border-primary/10">
+                <button
+                  onClick={() => sendReminder(showDetail)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#25D366] text-white text-sm font-bold rounded-brand-sm hover:bg-[#1da855] transition-colors"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                  Enviar Lembrete via WhatsApp
+                </button>
+              </div>
+            )}
+
             {showDetail.modality === "online" && (
               <div className="mt-4 pt-4 border-t border-primary/10">
-                <h4 className="text-xs font-bold text-txt-muted mb-3">📹 Link da Videochamada</h4>
+                <h4 className="text-xs font-bold text-txt-muted mb-3">Link da Videochamada</h4>
                 {showDetail.meetingUrl ? (
                   <div className="bg-green-50 border border-green-200 rounded-brand-sm p-3">
                     <p className="text-xs text-green-800 font-mono break-all mb-2">{showDetail.meetingUrl}</p>
@@ -344,11 +513,11 @@ export default function AgendaPage() {
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(showDetail.meetingUrl!);
-                          flash("Link copiado! 📋");
+                          flash("Link copiado!");
                         }}
                         className="text-xs text-green-700 font-bold hover:underline"
                       >
-                        📋 Copiar link
+                        Copiar link
                       </button>
                       <a
                         href={showDetail.meetingUrl}
@@ -356,8 +525,20 @@ export default function AgendaPage() {
                         rel="noopener noreferrer"
                         className="text-xs text-green-700 font-bold hover:underline"
                       >
-                        🔗 Abrir sala
+                        Abrir sala
                       </a>
+                      {showDetail.patientPhone && (
+                        <button
+                          onClick={() => {
+                            const msg = `Link da sua sessão — Psicolobia\n\nOlá, ${showDetail.patientName}! Aqui está o link da sua videochamada:\n\n${showDetail.meetingUrl}\n\nTe espero! 🌿`;
+                            const url = buildWhatsAppUrl(showDetail.patientPhone!, msg);
+                            window.open(url, "_blank");
+                          }}
+                          className="text-xs text-[#25D366] font-bold hover:underline"
+                        >
+                          Enviar via WhatsApp
+                        </button>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -375,33 +556,27 @@ export default function AgendaPage() {
                           if (res.ok) {
                             setShowDetail({ ...showDetail, meetingUrl: url });
                             navigator.clipboard.writeText(url);
-                            flash("Link gerado e copiado! 📹");
+                            flash("Link gerado e copiado!");
                             fetchAppointments();
                           } else flash("Erro ao gerar link.");
                         } catch { flash("Erro de conexão."); }
                       }}
                       className="btn-brand-primary text-xs !py-1.5 !px-3"
                     >
-                      🎥 Gerar Link de Videochamada
+                      Gerar Link de Videochamada
                     </button>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Edit Form */}
             <div className="mt-6 pt-4 border-t border-primary/10">
               <h4 className="text-xs font-bold text-txt-muted mb-3">Editar Sessão</h4>
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="block text-xs font-bold mb-1">Data</label>
-                    <input
-                      type="date"
-                      defaultValue={showDetail.date}
-                      id="edit-date"
-                      className={inputCls}
-                    />
+                    <input type="date" defaultValue={showDetail.date} id="edit-date" className={inputCls} />
                   </div>
                   <div>
                     <label className="block text-xs font-bold mb-1">Modalidade</label>
@@ -413,7 +588,7 @@ export default function AgendaPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs font-bold mb-1">Início</label>
+                    <label className="block text-xs font-bold mb-1">Inicio</label>
                     <input type="time" defaultValue={showDetail.startTime} id="edit-startTime" className={inputCls} />
                   </div>
                   <div>
@@ -438,31 +613,19 @@ export default function AgendaPage() {
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ date, startTime, endTime, modality: modalityVal, notes: notesVal }),
                       });
-                      if (res.ok) { flash("Sessão atualizada! ✅"); setShowDetail(null); fetchAppointments(); }
+                      if (res.ok) { flash("Sessão atualizada!"); setShowDetail(null); fetchAppointments(); }
                       else flash("Erro ao atualizar sessão.");
                     } catch { flash("Erro de conexão."); }
                   }}
                   className="btn-brand-primary text-xs w-full"
                 >
-                  Salvar Alterações 🌿
+                  Salvar Alterações
                 </button>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-primary/10">
-              {showDetail.status === "pending" && (
-                <>
-                  <button onClick={() => handleStatus(showDetail, "confirmed")} className="btn-brand-primary text-xs !py-1.5 !px-3">Confirmar</button>
-                  <button onClick={() => handleStatus(showDetail, "cancelled")} className="text-xs px-3 py-1.5 border border-red-200 text-red-500 rounded-brand-sm hover:bg-red-50 transition-colors">Cancelar</button>
-                </>
-              )}
-              {showDetail.status === "confirmed" && (
-                <>
-                  <button onClick={() => handleStatus(showDetail, "completed")} className="btn-brand-primary text-xs !py-1.5 !px-3">Concluída</button>
-                  <button onClick={() => handleStatus(showDetail, "no_show")} className="text-xs px-3 py-1.5 border border-gray-200 text-gray-500 rounded-brand-sm hover:bg-gray-50 transition-colors">Não Compareceu</button>
-                  <button onClick={() => handleStatus(showDetail, "cancelled")} className="text-xs px-3 py-1.5 border border-red-200 text-red-500 rounded-brand-sm hover:bg-red-50 transition-colors">Cancelar</button>
-                </>
-              )}
+              {statusActions(showDetail)}
               <button onClick={() => setShowDetail(null)} className="text-xs px-3 py-1.5 border border-primary/15 text-txt-muted rounded-brand-sm hover:bg-bg transition-colors ml-auto">Fechar</button>
             </div>
           </div>
