@@ -31,6 +31,7 @@ export default function FinanceiroPage() {
   const [patients, setPatients] = useState<PatientOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editPayment, setEditPayment] = useState<PaymentRow | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
 
@@ -171,11 +172,17 @@ export default function FinanceiroPage() {
                         {statusLabel[p.payment.status] || p.payment.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 flex gap-2">
+                      <button
+                        onClick={() => setEditPayment(p)}
+                        className="text-xs text-primary-dark font-bold hover:underline"
+                      >
+                        Editar
+                      </button>
                       {(p.payment.status === "pending" || p.payment.status === "overdue") && (
                         <button
                           onClick={() => markAsPaid(p.payment.id)}
-                          className="text-xs text-primary-dark font-bold hover:underline"
+                          className="text-xs text-green-600 font-bold hover:underline"
                         >
                           Marcar pago
                         </button>
@@ -232,6 +239,89 @@ export default function FinanceiroPage() {
                   {saving ? "Salvando…" : "Registrar Pagamento 🌿"}
                 </button>
                 <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2.5 border-[1.5px] border-primary/15 rounded-brand-sm text-sm text-txt hover:bg-bg transition-colors">
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Payment Modal */}
+      {editPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="bg-white rounded-brand p-8 shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-heading text-lg font-semibold text-txt">Editar Pagamento</h3>
+              <button onClick={() => setEditPayment(null)} className="text-txt-muted hover:text-txt text-lg">✕</button>
+            </div>
+            <p className="text-sm text-txt-muted mb-4">Paciente: <strong>{editPayment.patientName}</strong></p>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setSaving(true);
+                const fd = new FormData(e.currentTarget);
+                try {
+                  const res = await fetch("/api/payments", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      id: editPayment.payment.id,
+                      amount: fd.get("amount"),
+                      method: fd.get("method"),
+                      status: fd.get("status"),
+                      dueDate: fd.get("dueDate") || null,
+                      description: fd.get("description") || null,
+                      paidAt: fd.get("status") === "paid" ? (editPayment.payment.paidAt || new Date().toISOString()) : null,
+                    }),
+                  });
+                  if (res.ok) {
+                    flash("Pagamento atualizado! ✅");
+                    setEditPayment(null);
+                    fetchPayments();
+                  } else flash("Erro ao atualizar pagamento.");
+                } catch { flash("Erro de conexão."); }
+                setSaving(false);
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-xs font-bold mb-1.5">Valor (R$)</label>
+                <input name="amount" type="number" step="0.01" defaultValue={editPayment.payment.amount} className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-xs font-bold mb-1.5">Método de Pagamento</label>
+                <select name="method" defaultValue={editPayment.payment.method} className={inputCls}>
+                  <option value="pix">PIX</option>
+                  <option value="credit_card">Cartão de Crédito</option>
+                  <option value="debit_card">Cartão de Débito</option>
+                  <option value="bank_transfer">Transferência Bancária</option>
+                  <option value="cash">Dinheiro</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold mb-1.5">Status</label>
+                <select name="status" defaultValue={editPayment.payment.status} className={inputCls}>
+                  <option value="pending">Pendente</option>
+                  <option value="paid">Pago</option>
+                  <option value="overdue">Atrasado</option>
+                  <option value="cancelled">Cancelado</option>
+                  <option value="refunded">Reembolsado</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold mb-1.5">Data de Vencimento</label>
+                <input name="dueDate" type="date" defaultValue={editPayment.payment.dueDate?.slice(0, 10) || ""} className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-xs font-bold mb-1.5">Descrição</label>
+                <input name="description" type="text" defaultValue={editPayment.payment.description || ""} className={inputCls} />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="submit" disabled={saving} className="btn-brand-primary flex-1 disabled:opacity-50">
+                  {saving ? "Salvando…" : "Salvar Alterações 🌿"}
+                </button>
+                <button type="button" onClick={() => setEditPayment(null)} className="px-4 py-2.5 border-[1.5px] border-primary/15 rounded-brand-sm text-sm text-txt hover:bg-bg transition-colors">
                   Cancelar
                 </button>
               </div>

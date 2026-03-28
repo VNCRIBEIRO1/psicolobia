@@ -62,3 +62,34 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Erro ao criar pagamento." }, { status: 500 });
   }
 }
+
+export async function PUT(req: NextRequest) {
+  try {
+    const auth = await requireAdmin();
+    if (auth.error) return auth.response;
+
+    const body = await req.json();
+    const { id, status, paidAt, method, amount, dueDate, description } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "ID do pagamento é obrigatório." }, { status: 400 });
+    }
+
+    const [updated] = await db.update(payments).set({
+      ...(status !== undefined && { status }),
+      ...(paidAt !== undefined && { paidAt: paidAt ? new Date(paidAt) : null }),
+      ...(method !== undefined && { method }),
+      ...(amount !== undefined && { amount: String(amount) }),
+      ...(dueDate !== undefined && { dueDate }),
+      ...(description !== undefined && { description }),
+    }).where(eq(payments.id, id)).returning();
+
+    if (!updated) {
+      return NextResponse.json({ error: "Pagamento não encontrado." }, { status: 404 });
+    }
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("PUT /api/payments error:", error);
+    return NextResponse.json({ error: "Erro ao atualizar pagamento." }, { status: 500 });
+  }
+}

@@ -23,6 +23,34 @@ export async function POST(req: NextRequest) {
     if (auth.error) return auth.response;
 
     const body = await req.json();
+
+    // Support batch format: { slots: [...] }
+    if (body.slots && Array.isArray(body.slots)) {
+      // Delete all existing slots then re-insert active ones
+      await db.delete(availability);
+
+      const activeSlots = body.slots.filter(
+        (s: { active?: boolean }) => s.active !== false
+      );
+
+      if (activeSlots.length > 0) {
+        const inserted = await db
+          .insert(availability)
+          .values(
+            activeSlots.map((s: { dayOfWeek: number; startTime: string; endTime: string; active?: boolean }) => ({
+              dayOfWeek: s.dayOfWeek,
+              startTime: s.startTime,
+              endTime: s.endTime,
+              active: s.active ?? true,
+            }))
+          )
+          .returning();
+        return NextResponse.json(inserted, { status: 201 });
+      }
+      return NextResponse.json([], { status: 201 });
+    }
+
+    // Support single slot format: { dayOfWeek, startTime, endTime }
     const { dayOfWeek, startTime, endTime, active } = body;
 
     if (dayOfWeek === undefined || !startTime || !endTime) {

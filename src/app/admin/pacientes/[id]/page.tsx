@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -81,8 +82,8 @@ function InfoRow({ label, value }: { label: string; value: string | null | undef
   );
 }
 
-export default function PacienteDetalhePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function PacienteDetalhePage() {
+  const { id } = useParams<{ id: string }>();
   const [patient, setPatient] = useState<Patient | null>(null);
   const [records, setRecords] = useState<ClinicalRecord[]>([]);
   const [appts, setAppts] = useState<AppointmentRow[]>([]);
@@ -105,7 +106,27 @@ export default function PacienteDetalhePage({ params }: { params: Promise<{ id: 
         fetch(`/api/payments?patientId=${id}`),
       ]);
       if (pRes.ok) { const p = await pRes.json(); setPatient(p); setEditData(p); }
-      if (rRes.ok) { const r = await rRes.json(); setRecords(Array.isArray(r) ? r : []); }
+      if (rRes.ok) {
+        const r = await rRes.json();
+        setRecords(
+          Array.isArray(r)
+            ? r.map((row: Record<string, unknown>) => {
+                const rec = (row.record ?? row) as Record<string, unknown>;
+                return {
+                  id: rec.id,
+                  sessionDate: rec.sessionDate,
+                  sessionNumber: rec.sessionNumber,
+                  chiefComplaint: rec.chiefComplaint,
+                  clinicalNotes: rec.clinicalNotes,
+                  interventions: rec.interventions,
+                  homework: rec.homework,
+                  mood: rec.mood,
+                  createdAt: rec.createdAt,
+                } as ClinicalRecord;
+              })
+            : []
+        );
+      }
       if (aRes.ok) {
         const d = await aRes.json();
         setAppts(Array.isArray(d) ? d.map((x: Record<string, unknown>) => (x.appointment ?? x) as AppointmentRow) : []);

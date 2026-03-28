@@ -190,6 +190,14 @@ export const groupMembers = pgTable("group_members", {
   active: boolean("active").default(true).notNull(),
 });
 
+/* ========== SETTINGS (key-value store for pricing, areas, config) ========== */
+export const settings = pgTable("settings", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  key: varchar("key", { length: 100 }).unique().notNull(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 /* ========== RELATIONS ========== */
 export const usersRelations = relations(users, ({ many }) => ({
   blogPosts: many(blogPosts),

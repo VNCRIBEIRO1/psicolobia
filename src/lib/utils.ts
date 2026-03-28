@@ -12,12 +12,43 @@ export function formatCurrency(value: number): string {
   }).format(value);
 }
 
-export function formatDate(date: Date | string): string {
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(date));
+export function formatDate(date: Date | string | null | undefined): string {
+  if (!date) return "—";
+  try {
+    let d: Date;
+    if (date instanceof Date) {
+      d = date;
+    } else {
+      // Date-only string like "2026-03-15" → append T00:00:00 to avoid UTC shift
+      const s = String(date);
+      d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s + "T00:00:00") : new Date(s);
+    }
+    if (isNaN(d.getTime())) return "—";
+    return new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(d);
+  } catch {
+    return "—";
+  }
+}
+
+export function formatDateTime(date: Date | string | null | undefined): string {
+  if (!date) return "—";
+  try {
+    const d = date instanceof Date ? date : new Date(String(date));
+    if (isNaN(d.getTime())) return "—";
+    return new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(d);
+  } catch {
+    return "—";
+  }
 }
 
 export function formatPhone(phone: string): string {

@@ -295,7 +295,7 @@ export default function AgendaPage() {
       {/* Appointment Detail Modal */}
       {showDetail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-          <div className="bg-white rounded-brand p-8 shadow-lg w-full max-w-md">
+          <div className="bg-white rounded-brand p-8 shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-heading text-lg font-semibold text-txt">Detalhes da Sessão</h3>
               <button onClick={() => setShowDetail(null)} className="text-txt-muted hover:text-txt text-lg">✕</button>
@@ -331,7 +331,67 @@ export default function AgendaPage() {
               )}
             </div>
 
-            <div className="flex flex-wrap gap-2 mt-6">
+            {/* Edit Form */}
+            <div className="mt-6 pt-4 border-t border-primary/10">
+              <h4 className="text-xs font-bold text-txt-muted mb-3">Editar Sessão</h4>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-bold mb-1">Data</label>
+                    <input
+                      type="date"
+                      defaultValue={showDetail.date}
+                      id="edit-date"
+                      className={inputCls}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold mb-1">Modalidade</label>
+                    <select defaultValue={showDetail.modality} id="edit-modality" className={inputCls}>
+                      <option value="online">Online</option>
+                      <option value="presencial">Presencial</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-bold mb-1">Início</label>
+                    <input type="time" defaultValue={showDetail.startTime} id="edit-startTime" className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold mb-1">Fim</label>
+                    <input type="time" defaultValue={showDetail.endTime} id="edit-endTime" className={inputCls} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold mb-1">Notas</label>
+                  <textarea defaultValue={showDetail.notes || ""} id="edit-notes" rows={2} className={inputCls} />
+                </div>
+                <button
+                  onClick={async () => {
+                    const date = (document.getElementById("edit-date") as HTMLInputElement).value;
+                    const startTime = (document.getElementById("edit-startTime") as HTMLInputElement).value;
+                    const endTime = (document.getElementById("edit-endTime") as HTMLInputElement).value;
+                    const modalityVal = (document.getElementById("edit-modality") as HTMLSelectElement).value;
+                    const notesVal = (document.getElementById("edit-notes") as HTMLTextAreaElement).value;
+                    try {
+                      const res = await fetch(`/api/appointments/${showDetail.id}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ date, startTime, endTime, modality: modalityVal, notes: notesVal }),
+                      });
+                      if (res.ok) { flash("Sessão atualizada! ✅"); setShowDetail(null); fetchAppointments(); }
+                      else flash("Erro ao atualizar sessão.");
+                    } catch { flash("Erro de conexão."); }
+                  }}
+                  className="btn-brand-primary text-xs w-full"
+                >
+                  Salvar Alterações 🌿
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-primary/10">
               {showDetail.status === "pending" && (
                 <>
                   <button onClick={() => handleStatus(showDetail, "confirmed")} className="btn-brand-primary text-xs !py-1.5 !px-3">Confirmar</button>
