@@ -17,10 +17,22 @@ export async function GET(req: NextRequest) {
     }
 
     // Verify appointment belongs to this patient
+    const userId = auth.session!.user.id;
+    const [patient] = await db
+      .select({ id: patients.id })
+      .from(patients)
+      .where(eq(patients.userId, userId))
+      .limit(1);
+
     const [apt] = await db
       .select()
       .from(appointments)
-      .where(eq(appointments.id, appointmentId));
+      .where(
+        and(
+          eq(appointments.id, appointmentId),
+          eq(appointments.patientId, patient?.id || "")
+        )
+      );
 
     if (!apt) {
       return NextResponse.json({ error: "Agendamento não encontrado." }, { status: 404 });
@@ -59,7 +71,32 @@ export async function POST(req: NextRequest) {
     if (!appointmentId) {
       return NextResponse.json({ error: "appointmentId é obrigatório." }, { status: 400 });
     }
+    // Verify appointment belongs to this patient
+    const userId = auth.session!.user.id;
+    const [patient] = await db
+      .select({ id: patients.id })
+      .from(patients)
+      .where(eq(patients.userId, userId))
+      .limit(1);
 
+    if (!patient) {
+      return NextResponse.json({ error: "Registro de paciente n\u00e3o encontrado." }, { status: 404 });
+    }
+
+    const [apt] = await db
+      .select({ id: appointments.id })
+      .from(appointments)
+      .where(
+        and(
+          eq(appointments.id, appointmentId),
+          eq(appointments.patientId, patient.id)
+        )
+      )
+      .limit(1);
+
+    if (!apt) {
+      return NextResponse.json({ error: "Agendamento n\u00e3o encontrado." }, { status: 404 });
+    }
     // Check if triage already exists
     const [existing] = await db
       .select()
@@ -85,16 +122,16 @@ export async function POST(req: NextRequest) {
         .returning();
 
       // Notify admin about updated triage
-      const [apt] = await db.select().from(appointments).where(eq(appointments.id, appointmentId));
-      if (apt) {
-        const [pat] = await db.select({ name: patients.name }).from(patients).where(eq(patients.id, apt.patientId));
+      const [aptForNotif] = await db.select().from(appointments).where(eq(appointments.id, appointmentId));
+      if (aptForNotif) {
+        const [pat] = await db.select({ name: patients.name }).from(patients).where(eq(patients.id, aptForNotif.patientId));
         await createNotification({
           type: "triage",
           title: "Triagem atualizada",
-          message: `${pat?.name || "Paciente"} atualizou a triagem da sessão de ${apt.date}.`,
-          patientId: apt.patientId,
+          message: `${pat?.name || "Paciente"} atualizou a triagem da sess\u00e3o de ${aptForNotif.date}.`,
+          patientId: aptForNotif.patientId,
           appointmentId,
-          linkUrl: `/admin/pacientes/${apt.patientId}`,
+          linkUrl: `/admin/pacientes/${aptForNotif.patientId}`,
         });
       }
       return NextResponse.json(updated);
@@ -117,16 +154,16 @@ export async function POST(req: NextRequest) {
       .returning();
 
     // Notify admin about new triage
-    const [apt] = await db.select().from(appointments).where(eq(appointments.id, appointmentId));
-    if (apt) {
-      const [pat] = await db.select({ name: patients.name }).from(patients).where(eq(patients.id, apt.patientId));
+    const [aptForNotif2] = await db.select().from(appointments).where(eq(appointments.id, appointmentId));
+    if (aptForNotif2) {
+      const [pat] = await db.select({ name: patients.name }).from(patients).where(eq(patients.id, aptForNotif2.patientId));
       await createNotification({
         type: "triage",
         title: "Nova triagem recebida",
-        message: `${pat?.name || "Paciente"} preencheu a triagem pré-sessão de ${apt.date}.${mainConcern ? ` Queixa: ${mainConcern.substring(0, 80)}${mainConcern.length > 80 ? "..." : ""}` : ""}`,
-        patientId: apt.patientId,
+        message: `${pat?.name || "Paciente"} preencheu a triagem pr\u00e9-sess\u00e3o de ${aptForNotif2.date}.${mainConcern ? ` Queixa: ${mainConcern.substring(0, 80)}${mainConcern.length > 80 ? "..." : ""}` : ""}`,
+        patientId: aptForNotif2.patientId,
         appointmentId,
-        linkUrl: `/admin/pacientes/${apt.patientId}`,
+        linkUrl: `/admin/pacientes/${aptForNotif2.patientId}`,
       });
     }
 

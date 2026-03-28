@@ -6,13 +6,20 @@ import { requireAdmin } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
   try {
+    const auth = await requireAdmin();
+    if (auth.error) return auth.response;
+
     const { searchParams } = new URL(req.url);
     const key = searchParams.get("key");
 
     if (key) {
       const [row] = await db.select().from(settings).where(eq(settings.key, key));
       if (!row) return NextResponse.json({ key, value: null });
-      return NextResponse.json({ key: row.key, value: JSON.parse(row.value) });
+      try {
+        return NextResponse.json({ key: row.key, value: JSON.parse(row.value) });
+      } catch {
+        return NextResponse.json({ key: row.key, value: row.value });
+      }
     }
 
     // Return all settings

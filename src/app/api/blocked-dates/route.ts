@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
             reason: d.reason || null,
           }))
         )
+        .onConflictDoNothing({ target: blockedDates.date })
         .returning();
 
       return NextResponse.json(inserted, { status: 201 });
@@ -55,7 +56,12 @@ export async function POST(req: NextRequest) {
     const [newBlocked] = await db
       .insert(blockedDates)
       .values({ date, reason: reason || null })
+      .onConflictDoNothing({ target: blockedDates.date })
       .returning();
+
+    if (!newBlocked) {
+      return NextResponse.json({ error: "Data já está bloqueada." }, { status: 409 });
+    }
 
     return NextResponse.json(newBlocked, { status: 201 });
   } catch (error) {
@@ -74,9 +80,15 @@ export async function DELETE(req: NextRequest) {
     const date = searchParams.get("date");
 
     if (id) {
-      await db.delete(blockedDates).where(eq(blockedDates.id, id));
+      const deleted = await db.delete(blockedDates).where(eq(blockedDates.id, id)).returning();
+      if (deleted.length === 0) {
+        return NextResponse.json({ error: "Data bloqueada não encontrada." }, { status: 404 });
+      }
     } else if (date) {
-      await db.delete(blockedDates).where(eq(blockedDates.date, date));
+      const deleted = await db.delete(blockedDates).where(eq(blockedDates.date, date)).returning();
+      if (deleted.length === 0) {
+        return NextResponse.json({ error: "Data bloqueada não encontrada." }, { status: 404 });
+      }
     } else {
       return NextResponse.json({ error: "ID ou data são necessários." }, { status: 400 });
     }

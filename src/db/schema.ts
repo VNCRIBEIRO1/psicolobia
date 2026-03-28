@@ -56,7 +56,7 @@ export const users = pgTable("users", {
 /* ========== PATIENTS ========== */
 export const patients = pgTable("patients", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").unique().references(() => users.id, { onDelete: "cascade" }),
   name: varchar("name", { length: 255 }).notNull(),
   email: varchar("email", { length: 255 }),
   phone: varchar("phone", { length: 20 }).notNull(),
@@ -212,7 +212,7 @@ export const triages = pgTable("triages", {
 /* ========== BLOCKED DATES (admin blocks specific dates) ========== */
 export const blockedDates = pgTable("blocked_dates", {
   id: uuid("id").defaultRandom().primaryKey(),
-  date: date("date").notNull(),
+  date: date("date").notNull().unique(),
   reason: varchar("reason", { length: 255 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

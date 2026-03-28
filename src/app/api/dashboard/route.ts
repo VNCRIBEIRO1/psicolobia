@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { patients, appointments, payments } from "@/db/schema";
-import { eq, count, sum, and, gte, lte, desc } from "drizzle-orm";
+import { eq, ne, count, sum, and, gte, lte, desc } from "drizzle-orm";
 import { requireAdmin } from "@/lib/api-auth";
+
+function todaySP(): string {
+  return new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+}
 
 export async function GET() {
   try {
@@ -32,13 +36,19 @@ export async function GET() {
         lte(payments.paidAt, endOfMonth)
       ));
 
-    // Upcoming appointments
-    const todayStr = now.toISOString().split("T")[0];
+    // Upcoming appointments (exclude cancelled/no_show)
+    const todayStr = todaySP();
     const upcoming = await db
       .select({ appointment: appointments, patientName: patients.name })
       .from(appointments)
       .leftJoin(patients, eq(appointments.patientId, patients.id))
-      .where(gte(appointments.date, todayStr))
+      .where(
+        and(
+          gte(appointments.date, todayStr),
+          ne(appointments.status, "cancelled"),
+          ne(appointments.status, "no_show")
+        )
+      )
       .orderBy(appointments.date)
       .limit(5);
 

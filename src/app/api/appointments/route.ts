@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { appointments, patients } from "@/db/schema";
-import { eq, desc, and, gte, lte } from "drizzle-orm";
+import { eq, ne, desc, and, gte, lte, lt, gt } from "drizzle-orm";
 import { requireAdmin } from "@/lib/api-auth";
 import { createNotification } from "@/lib/notifications";
 
@@ -50,6 +50,24 @@ export async function POST(req: NextRequest) {
 
     if (!patientId || !date || !startTime || !endTime) {
       return NextResponse.json({ error: "Paciente, data, hora início e hora fim são obrigatórios." }, { status: 400 });
+    }
+
+    // M1: Check for overlapping appointments (same logic as portal)
+    const overlapping = await db
+      .select({ id: appointments.id })
+      .from(appointments)
+      .where(
+        and(
+          eq(appointments.date, date),
+          ne(appointments.status, "cancelled"),
+          lt(appointments.startTime, endTime),
+          gt(appointments.endTime, startTime)
+        )
+      )
+      .limit(1);
+
+    if (overlapping.length > 0) {
+      return NextResponse.json({ error: "Conflito de horário: já existe um agendamento nesse período." }, { status: 409 });
     }
 
     const [newAppointment] = await db.insert(appointments).values({

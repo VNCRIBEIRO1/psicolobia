@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { appointments, patients } from "@/db/schema";
-import { eq, desc, and, ne } from "drizzle-orm";
+import { appointments, patients, availability, blockedDates } from "@/db/schema";
+import { eq, desc, and, ne, lt, gt } from "drizzle-orm";
 import { requireAuth } from "@/lib/api-auth";
 import { createNotification } from "@/lib/notifications";
+
+function todaySP(): string {
+  return new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+}
 
 export async function GET() {
   try {
@@ -68,20 +72,67 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check for booking conflicts (exclude cancelled appointments)
-    const existing = await db
+    // H4: Validate date is not in the past
+    const today = todaySP();
+    if (date < today) {
+      return NextResponse.json(
+        { error: "N\u00e3o \u00e9 poss\u00edvel agendar em datas passadas." },
+        { status: 400 }
+      );
+    }
+
+    // H3: Check if date is blocked
+    const [blocked] = await db
+      .select({ id: blockedDates.id })
+      .from(blockedDates)
+      .where(eq(blockedDates.date, date))
+      .limit(1);
+
+    if (blocked) {
+      return NextResponse.json(
+        { error: "Esta data est\u00e1 bloqueada para agendamentos." },
+        { status: 409 }
+      );
+    }
+
+    // H3: Check if time falls within configured availability
+    const dow = new Date(date + "T00:00:00").getDay();
+    const availSlots = await db
+      .select()
+      .from(availability)
+      .where(
+        and(
+          eq(availability.dayOfWeek, dow),
+          eq(availability.active, true)
+        )
+      );
+
+    const withinAvailability = availSlots.some(
+      (s) => startTime >= s.startTime && endTime <= s.endTime
+    );
+
+    if (!withinAvailability) {
+      return NextResponse.json(
+        { error: "Hor\u00e1rio fora da disponibilidade configurada." },
+        { status: 409 }
+      );
+    }
+
+    // H2: Check for overlapping appointments (time-range overlap, not just exact match)
+    const overlapping = await db
       .select({ id: appointments.id })
       .from(appointments)
       .where(
         and(
           eq(appointments.date, date),
-          eq(appointments.startTime, startTime),
           ne(appointments.status, "cancelled"),
+          lt(appointments.startTime, endTime),
+          gt(appointments.endTime, startTime)
         )
       )
       .limit(1);
 
-    if (existing.length > 0) {
+    if (overlapping.length > 0) {
       return NextResponse.json(
         { error: "Este horário já está ocupado. Escolha outro horário." },
         { status: 409 }

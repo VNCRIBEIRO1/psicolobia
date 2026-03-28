@@ -40,6 +40,11 @@ function RegistroForm() {
     e.preventDefault();
     setError("");
 
+    if (!name.trim()) {
+      setError("Nome é obrigatório.");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("As senhas não coincidem.");
       return;

@@ -89,7 +89,7 @@ export function Contact() {
                 <select name="subject" className="w-full py-2.5 px-3 border-[1.5px] border-primary/15 rounded-brand-sm font-body text-sm bg-white text-txt focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10">
                   <option>Agendar sessão</option>
                   <option>Grupo terapêutico</option>
-                  <option>Terapia infantil</option>
+                  <option>Terapia de Aceitação e Compromisso (ACT)</option>
                   <option>Dúvida</option>
                   <option>Outro</option>
                 </select>

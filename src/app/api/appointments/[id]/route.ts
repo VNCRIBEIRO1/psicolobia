@@ -3,9 +3,13 @@ import { db } from "@/lib/db";
 import { appointments, patients, payments, settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { createNotification } from "@/lib/notifications";
+import { requireAdmin } from "@/lib/api-auth";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireAdmin();
+    if (auth.error) return auth.response;
+
     const { id } = await params;
     const [appointment] = await db.select().from(appointments).where(eq(appointments.id, id));
     if (!appointment) {
@@ -20,6 +24,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireAdmin();
+    if (auth.error) return auth.response;
+
     const { id } = await params;
     const body = await req.json();
     const { date, startTime, endTime, modality, status, notes, meetingUrl } = body;
@@ -76,25 +83,28 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             } catch { /* pricing parse error, default to 0 */ }
           }
 
-          const [newPayment] = await db.insert(payments).values({
-            patientId: updated.patientId,
-            appointmentId: updated.id,
-            amount,
-            method: "pix",
-            status: "pending",
-            dueDate: updated.date,
-            description: `Sessão ${updated.modality === "presencial" ? "presencial" : "online"} — ${updated.date}`,
-          }).returning();
-
-          if (newPayment) {
-            await createNotification({
-              type: "payment",
-              title: "Cobrança criada automaticamente",
-              message: `Cobrança de R$ ${Number(amount).toFixed(2)} criada para ${pat?.name || "paciente"} (sessão confirmada em ${updated.date}).`,
+          // Skip payment creation if no pricing configured
+          if (Number(amount) > 0) {
+            const [newPayment] = await db.insert(payments).values({
               patientId: updated.patientId,
-              paymentId: newPayment.id,
-              linkUrl: `/admin/financeiro`,
-            });
+              appointmentId: updated.id,
+              amount,
+              method: "pix",
+              status: "pending",
+              dueDate: updated.date,
+              description: `Sessão ${updated.modality === "presencial" ? "presencial" : "online"} — ${updated.date}`,
+            }).returning();
+
+            if (newPayment) {
+              await createNotification({
+                type: "payment",
+                title: "Cobrança criada automaticamente",
+                message: `Cobrança de R$ ${Number(amount).toFixed(2)} criada para ${pat?.name || "paciente"} (sessão confirmada em ${updated.date}).`,
+                patientId: updated.patientId,
+                paymentId: newPayment.id,
+                linkUrl: `/admin/financeiro`,
+              });
+            }
           }
         } catch (payErr) {
           console.error("Auto-create payment error:", payErr);
@@ -112,6 +122,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireAdmin();
+    if (auth.error) return auth.response;
+
     const { id } = await params;
     const [deleted] = await db.delete(appointments).where(eq(appointments.id, id)).returning();
     if (!deleted) {

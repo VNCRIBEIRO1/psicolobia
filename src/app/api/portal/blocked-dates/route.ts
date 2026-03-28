@@ -3,9 +3,13 @@ import { db } from "@/lib/db";
 import { blockedDates } from "@/db/schema";
 import { gte } from "drizzle-orm";
 
+function todaySP(): string {
+  return new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+}
+
 export async function GET() {
   try {
-    const today = new Date().toISOString().split("T")[0];
+    const today = todaySP();
     const result = await db
       .select({ date: blockedDates.date, reason: blockedDates.reason })
       .from(blockedDates)

@@ -43,8 +43,13 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { patientId, appointmentId, amount, method, dueDate, description } = body;
 
-    if (!patientId || !amount) {
+    if (!patientId || amount === undefined || amount === null) {
       return NextResponse.json({ error: "Paciente e valor são obrigatórios." }, { status: 400 });
+    }
+
+    const numericAmount = Number(amount);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      return NextResponse.json({ error: "Valor deve ser um número positivo." }, { status: 400 });
     }
 
     const [newPayment] = await db.insert(payments).values({

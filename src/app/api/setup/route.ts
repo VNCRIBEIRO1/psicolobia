@@ -19,7 +19,7 @@ export async function POST(request: Request) {
 
     const existing = await db.select().from(users).where(eq(users.email, email));
     if (existing.length > 0) {
-      return NextResponse.json({ error: "Admin já existe.", user: { email: existing[0].email, role: existing[0].role } }, { status: 409 });
+      return NextResponse.json({ error: "Admin já existe." }, { status: 409 });
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);

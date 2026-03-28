@@ -10,6 +10,8 @@ interface JitsiMeetProps {
 
 export function JitsiMeet({ roomName, displayName, onClose }: JitsiMeetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const apiRef = useRef<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -36,6 +38,7 @@ export function JitsiMeet({ roomName, displayName, onClose }: JitsiMeetProps) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const api = new (window as any).JitsiMeetExternalAPI(JITSI_DOMAIN, options);
+        apiRef.current = api;
         setLoading(false);
 
         api.addEventListener("readyToClose", () => {
@@ -57,7 +60,13 @@ export function JitsiMeet({ roomName, displayName, onClose }: JitsiMeetProps) {
     document.body.appendChild(script);
 
     return () => {
-      document.body.removeChild(script);
+      if (apiRef.current) {
+        try { apiRef.current.dispose(); } catch { /* already disposed */ }
+        apiRef.current = null;
+      }
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
     };
   }, [roomName, displayName, onClose]);
 

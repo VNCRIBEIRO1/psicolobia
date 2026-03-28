@@ -26,28 +26,33 @@ export async function POST(req: NextRequest) {
 
     // Support batch format: { slots: [...] }
     if (body.slots && Array.isArray(body.slots)) {
-      // Delete all existing slots then re-insert active ones
-      await db.delete(availability);
+      // Wrap in transaction to prevent data loss if insert fails
+      const result = await db.transaction(async (tx) => {
+        // Delete all existing slots then re-insert
+        await tx.delete(availability);
 
-      const activeSlots = body.slots.filter(
-        (s: { active?: boolean }) => s.active !== false
-      );
+        const activeSlots = body.slots.filter(
+          (s: { active?: boolean; startTime?: string; endTime?: string }) =>
+            s.active !== false && s.startTime && s.endTime && s.startTime < s.endTime
+        );
 
-      if (activeSlots.length > 0) {
-        const inserted = await db
-          .insert(availability)
-          .values(
-            activeSlots.map((s: { dayOfWeek: number; startTime: string; endTime: string; active?: boolean }) => ({
-              dayOfWeek: s.dayOfWeek,
-              startTime: s.startTime,
-              endTime: s.endTime,
-              active: s.active ?? true,
-            }))
-          )
-          .returning();
-        return NextResponse.json(inserted, { status: 201 });
-      }
-      return NextResponse.json([], { status: 201 });
+        if (activeSlots.length > 0) {
+          const inserted = await tx
+            .insert(availability)
+            .values(
+              activeSlots.map((s: { dayOfWeek: number; startTime: string; endTime: string; active?: boolean }) => ({
+                dayOfWeek: Math.min(Math.max(s.dayOfWeek, 0), 6),
+                startTime: s.startTime,
+                endTime: s.endTime,
+                active: s.active ?? true,
+              }))
+            )
+            .returning();
+          return inserted;
+        }
+        return [];
+      });
+      return NextResponse.json(result, { status: 201 });
     }
 
     // Support single slot format: { dayOfWeek, startTime, endTime }
@@ -55,6 +60,10 @@ export async function POST(req: NextRequest) {
 
     if (dayOfWeek === undefined || !startTime || !endTime) {
       return NextResponse.json({ error: "Dia, hora início e hora fim são obrigatórios." }, { status: 400 });
+    }
+
+    if (startTime >= endTime) {
+      return NextResponse.json({ error: "Hora início deve ser anterior à hora fim." }, { status: 400 });
     }
 
     const [newSlot] = await db.insert(availability).values({

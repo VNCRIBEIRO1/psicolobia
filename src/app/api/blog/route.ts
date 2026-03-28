@@ -4,6 +4,8 @@ import { blogPosts } from "@/db/schema";
 import { eq, desc, and, ilike } from "drizzle-orm";
 import { slugify } from "@/lib/utils";
 import { requireAdmin } from "@/lib/api-auth";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   try {
@@ -11,8 +13,17 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get("status");
     const category = searchParams.get("category");
 
+    // Check if user is admin — if not, force published-only
+    const session = await getServerSession(authOptions);
+    const isAdmin = session?.user?.role === "admin" || session?.user?.role === "therapist";
+
     const conditions = [];
-    if (status) conditions.push(eq(blogPosts.status, status as "draft" | "published" | "archived"));
+    if (isAdmin && status) {
+      conditions.push(eq(blogPosts.status, status as "draft" | "published" | "archived"));
+    } else if (!isAdmin) {
+      // Public access: only published posts
+      conditions.push(eq(blogPosts.status, "published"));
+    }
     if (category) conditions.push(ilike(blogPosts.category, category));
 
     const result = await db
@@ -56,6 +67,7 @@ export async function POST(req: NextRequest) {
       category: category || null,
       coverImage: coverImage || null,
       status: status || "draft",
+      authorId: auth.session!.user.id,
       publishedAt: status === "published" ? new Date() : null,
     }).returning();
 

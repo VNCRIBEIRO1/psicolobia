@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { settings } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 // Public endpoint — patient-facing pages can read pricing/areas
 export async function GET(req: NextRequest) {
@@ -10,10 +10,10 @@ export async function GET(req: NextRequest) {
     const key = searchParams.get("key");
 
     // Only allow public keys
-    const publicKeys = ["pricing", "areas"];
+    const publicKeys = ["pricing", "areas"] as const;
 
     if (key) {
-      if (!publicKeys.includes(key)) {
+      if (!(publicKeys as readonly string[]).includes(key)) {
         return NextResponse.json({ error: "Chave não permitida." }, { status: 403 });
       }
       const [row] = await db.select().from(settings).where(eq(settings.key, key));
@@ -25,16 +25,16 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Return all public settings
+    // Return all public settings in a single query (avoids N+1)
+    const rows = await db.select().from(settings).where(
+      inArray(settings.key, [...publicKeys])
+    );
     const result: Record<string, unknown> = {};
-    for (const k of publicKeys) {
-      const [row] = await db.select().from(settings).where(eq(settings.key, k));
-      if (row) {
-        try {
-          result[k] = JSON.parse(row.value);
-        } catch {
-          result[k] = row.value;
-        }
+    for (const row of rows) {
+      try {
+        result[row.key] = JSON.parse(row.value);
+      } catch {
+        result[row.key] = row.value;
       }
     }
     return NextResponse.json(result);

@@ -4,8 +4,11 @@ import { authOptions } from "@/lib/auth";
 
 export async function requireAdmin() {
   const session = await getServerSession(authOptions);
-  if (!session || (session.user?.role !== "admin" && session.user?.role !== "therapist")) {
-    return { error: true, response: NextResponse.json({ error: "Não autorizado." }, { status: 401 }) };
+  if (!session) {
+    return { error: true, response: NextResponse.json({ error: "N\u00e3o autenticado." }, { status: 401 }) };
+  }
+  if (session.user?.role !== "admin" && session.user?.role !== "therapist") {
+    return { error: true, response: NextResponse.json({ error: "Acesso negado." }, { status: 403 }) };
   }
   return { error: false, session };
 }

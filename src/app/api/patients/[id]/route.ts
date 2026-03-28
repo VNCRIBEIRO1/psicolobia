@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { patients, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { requireAdmin } from "@/lib/api-auth";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireAdmin();
+    if (auth.error) return auth.response;
+
     const { id } = await params;
     const [patient] = await db.select().from(patients).where(eq(patients.id, id));
     if (!patient) {
@@ -19,6 +23,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireAdmin();
+    if (auth.error) return auth.response;
+
     const { id } = await params;
     const body = await req.json();
     const { name, email, phone, cpf, birthDate, gender, address, emergencyContact, emergencyPhone, notes, active } = body;
@@ -61,6 +68,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireAdmin();
+    if (auth.error) return auth.response;
+
     const { id } = await params;
 
     // Get patient to check for linked user

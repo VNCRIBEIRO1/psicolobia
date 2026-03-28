@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       dayOfWeek: dayOfWeek || null,
       time: time || null,
       maxParticipants: maxParticipants || 8,
-      price: price || null,
+      price: price !== undefined && price !== null ? String(price) : null,
       active: true,
     }).returning();
 

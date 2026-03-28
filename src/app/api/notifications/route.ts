@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     if (auth.error) return auth.response;
 
     const { searchParams } = new URL(req.url);
-    const limit = Math.min(parseInt(searchParams.get("limit") || "30"), 100);
+    const limit = Math.min(parseInt(searchParams.get("limit") || "30") || 30, 100);
     const unreadOnly = searchParams.get("unreadOnly") === "true";
 
     const conditions = [];
