@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, ReactNode } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
+import { SessionMismatch } from "@/components/SessionMismatch";
 
 const NAV_ITEMS = [
   { href: "/portal", label: "Início", icon: "🏠" },
@@ -13,7 +14,7 @@ const NAV_ITEMS = [
   { href: "/portal/documentos", label: "Documentos", icon: "📄" },
 ];
 
-function PortalSidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => void }) {
+function PortalSidebar({ mobileOpen, onClose, userName, userEmail }: { mobileOpen: boolean; onClose: () => void; userName?: string; userEmail?: string }) {
   return (
     <>
       {/* Mobile overlay */}
@@ -43,6 +44,12 @@ function PortalSidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: 
           ))}
         </nav>
         <div className="border-t border-primary/10 pt-4 mt-4 space-y-2">
+          {userName && (
+            <div className="px-0 py-1">
+              <p className="text-xs font-bold text-txt truncate">{userName}</p>
+              <p className="text-[0.65rem] text-txt-muted truncate">{userEmail}</p>
+            </div>
+          )}
           <Link href="/" className="text-xs text-primary-dark hover:underline block">← Voltar ao site</Link>
           <button onClick={() => signOut({ callbackUrl: "/" })} className="text-xs text-red-500 hover:underline">
             Sair
@@ -70,10 +77,7 @@ function PortalLayoutInner({ children }: { children: ReactNode }) {
     if (status === "unauthenticated") {
       router.push("/login");
     }
-    if (status === "authenticated" && session?.user?.role !== "patient") {
-      router.push("/admin");
-    }
-  }, [status, session, router]);
+  }, [status, router]);
 
   if (status === "loading") {
     return (
@@ -83,13 +87,27 @@ function PortalLayoutInner({ children }: { children: ReactNode }) {
     );
   }
 
-  if (status !== "authenticated" || session?.user?.role !== "patient") {
-    return null;
+  if (status !== "authenticated") return null;
+
+  if (session?.user?.role !== "patient") {
+    return (
+      <SessionMismatch
+        userName={session?.user?.name || "Usuário"}
+        userEmail={session?.user?.email || ""}
+        userRole={session?.user?.role || "admin"}
+        targetArea="portal"
+      />
+    );
   }
 
   return (
     <div className="flex min-h-screen bg-bg">
-      <PortalSidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
+      <PortalSidebar
+        mobileOpen={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        userName={session?.user?.name || undefined}
+        userEmail={session?.user?.email || undefined}
+      />
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile header */}
         <header className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-primary/10">

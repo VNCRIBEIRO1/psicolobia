@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { SessionProvider } from "next-auth/react";
+import { SessionMismatch } from "@/components/SessionMismatch";
 
 function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
@@ -13,10 +14,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     if (status === "unauthenticated") {
       router.push("/login");
     }
-    if (status === "authenticated" && session?.user?.role === "patient") {
-      router.push("/portal");
-    }
-  }, [status, session, router]);
+  }, [status, router]);
 
   if (status === "loading") {
     return (
@@ -32,6 +30,17 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   if (status !== "authenticated") return null;
+
+  if (session?.user?.role === "patient") {
+    return (
+      <SessionMismatch
+        userName={session.user.name || "Paciente"}
+        userEmail={session.user.email || ""}
+        userRole="patient"
+        targetArea="admin"
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-bg flex">
