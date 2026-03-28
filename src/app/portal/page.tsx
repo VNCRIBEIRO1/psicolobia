@@ -108,14 +108,24 @@ export default function PortalPage() {
           ) : (
             <div className="space-y-3">
               {upcoming.slice(0, 5).map((a) => (
-                <div key={a.id} className="flex items-center justify-between py-2 border-b border-primary/5 last:border-0">
-                  <div>
-                    <p className="text-sm font-medium text-txt">{fmtDate(a.date)} às {a.startTime}</p>
-                    <p className="text-xs text-txt-muted capitalize">{a.modality}</p>
+                <div key={a.id} className="py-3 border-b border-primary/5 last:border-0">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div>
+                      <p className="text-sm font-medium text-txt">{fmtDate(a.date)} às {a.startTime}</p>
+                      <p className="text-xs text-txt-muted capitalize">{a.modality === "online" ? "📹 Online" : "🏢 Presencial"}</p>
+                    </div>
+                    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[0.65rem] font-bold ${statusColor[a.status] || ""}`}>
+                      {statusLabel[a.status] || a.status}
+                    </span>
                   </div>
-                  <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[0.65rem] font-bold ${statusColor[a.status] || ""}`}>
-                    {statusLabel[a.status] || a.status}
-                  </span>
+                  <div className="flex gap-2 mt-1">
+                    <Link href={`/portal/triagem/${a.id}`} className="text-[0.65rem] text-accent font-bold hover:underline">
+                      📋 Triagem
+                    </Link>
+                    <Link href={`/portal/sala-espera/${a.id}`} className="text-[0.65rem] text-primary-dark font-bold hover:underline">
+                      🏠 Sala de Espera
+                    </Link>
+                  </div>
                 </div>
               ))}
             </div>

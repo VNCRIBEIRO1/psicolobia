@@ -190,6 +190,25 @@ export const groupMembers = pgTable("group_members", {
   active: boolean("active").default(true).notNull(),
 });
 
+/* ========== TRIAGES (pre-session intake) ========== */
+export const triages = pgTable("triages", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  appointmentId: uuid("appointment_id")
+    .references(() => appointments.id, { onDelete: "cascade" })
+    .notNull()
+    .unique(),
+  mood: varchar("mood", { length: 50 }),
+  sleepQuality: varchar("sleep_quality", { length: 50 }),
+  anxietyLevel: integer("anxiety_level"),
+  mainConcern: text("main_concern"),
+  recentEvents: text("recent_events"),
+  medicationChanges: text("medication_changes"),
+  additionalNotes: text("additional_notes"),
+  completed: boolean("completed").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 /* ========== SETTINGS (key-value store for pricing, areas, config) ========== */
 export const settings = pgTable("settings", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -237,4 +256,8 @@ export const groupsRelations = relations(groups, ({ many }) => ({
 export const groupMembersRelations = relations(groupMembers, ({ one }) => ({
   group: one(groups, { fields: [groupMembers.groupId], references: [groups.id] }),
   patient: one(patients, { fields: [groupMembers.patientId], references: [patients.id] }),
+}));
+
+export const triagesRelations = relations(triages, ({ one }) => ({
+  appointment: one(appointments, { fields: [triages.appointmentId], references: [appointments.id] }),
 }));

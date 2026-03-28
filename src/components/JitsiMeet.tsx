@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { JITSI_DOMAIN, jitsiConfig, jitsiInterfaceConfig } from "@/lib/jitsi";
 
 interface JitsiMeetProps {
   roomName: string;
@@ -15,33 +16,13 @@ export function JitsiMeet({ roomName, displayName, onClose }: JitsiMeetProps) {
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const domain = "meet.jit.si";
     const options = {
-      roomName: `psicolobia-${roomName}`,
+      roomName: roomName.startsWith("psicolobia-") ? roomName : `psicolobia-${roomName}`,
       parentNode: containerRef.current,
       width: "100%",
       height: "100%",
-      configOverwrite: {
-        startWithAudioMuted: true,
-        startWithVideoMuted: false,
-        prejoinPageEnabled: false,
-        disableDeepLinking: true,
-        enableWelcomePage: false,
-        enableClosePage: false,
-        disableModeratorIndicator: true,
-        disableReactions: true,
-        hiddenPremeetingButtons: ["invite"],
-      },
-      interfaceConfigOverwrite: {
-        SHOW_JITSI_WATERMARK: false,
-        SHOW_WATERMARK_FOR_GUESTS: false,
-        TOOLBAR_BUTTONS: [
-          "microphone", "camera", "desktop", "chat",
-          "raisehand", "tileview", "hangup",
-        ],
-        DISABLE_VIDEO_BACKGROUND: true,
-        DEFAULT_BACKGROUND: "#FFF5EE",
-      },
+      configOverwrite: jitsiConfig,
+      interfaceConfigOverwrite: jitsiInterfaceConfig,
       userInfo: {
         displayName,
       },
@@ -49,12 +30,12 @@ export function JitsiMeet({ roomName, displayName, onClose }: JitsiMeetProps) {
 
     // Load Jitsi External API script
     const script = document.createElement("script");
-    script.src = `https://${domain}/external_api.js`;
+    script.src = `https://${JITSI_DOMAIN}/external_api.js`;
     script.async = true;
     script.onload = () => {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const api = new (window as any).JitsiMeetExternalAPI(domain, options);
+        const api = new (window as any).JitsiMeetExternalAPI(JITSI_DOMAIN, options);
         setLoading(false);
 
         api.addEventListener("readyToClose", () => {

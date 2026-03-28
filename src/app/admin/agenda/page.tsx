@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { formatDate } from "@/lib/utils";
+import { buildMeetingUrl } from "@/lib/jitsi";
 
 const MONTHS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -15,6 +16,7 @@ type Appointment = {
   modality: string;
   status: string;
   notes: string | null;
+  meetingUrl: string | null;
 };
 
 type PatientOption = { id: string; name: string };
@@ -330,6 +332,62 @@ export default function AgendaPage() {
                 </div>
               )}
             </div>
+
+            {/* Jitsi Video Call Link */}
+            {showDetail.modality === "online" && (
+              <div className="mt-4 pt-4 border-t border-primary/10">
+                <h4 className="text-xs font-bold text-txt-muted mb-3">📹 Link da Videochamada</h4>
+                {showDetail.meetingUrl ? (
+                  <div className="bg-green-50 border border-green-200 rounded-brand-sm p-3">
+                    <p className="text-xs text-green-800 font-mono break-all mb-2">{showDetail.meetingUrl}</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(showDetail.meetingUrl!);
+                          flash("Link copiado! 📋");
+                        }}
+                        className="text-xs text-green-700 font-bold hover:underline"
+                      >
+                        📋 Copiar link
+                      </button>
+                      <a
+                        href={showDetail.meetingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-green-700 font-bold hover:underline"
+                      >
+                        🔗 Abrir sala
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-brand-sm p-3">
+                    <p className="text-xs text-yellow-700 mb-2">Nenhum link gerado. Gere para enviar ao paciente.</p>
+                    <button
+                      onClick={async () => {
+                        const url = buildMeetingUrl(showDetail.id);
+                        try {
+                          const res = await fetch(`/api/appointments/${showDetail.id}`, {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ meetingUrl: url }),
+                          });
+                          if (res.ok) {
+                            setShowDetail({ ...showDetail, meetingUrl: url });
+                            navigator.clipboard.writeText(url);
+                            flash("Link gerado e copiado! 📹");
+                            fetchAppointments();
+                          } else flash("Erro ao gerar link.");
+                        } catch { flash("Erro de conexão."); }
+                      }}
+                      className="btn-brand-primary text-xs !py-1.5 !px-3"
+                    >
+                      🎥 Gerar Link de Videochamada
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Edit Form */}
             <div className="mt-6 pt-4 border-t border-primary/10">
