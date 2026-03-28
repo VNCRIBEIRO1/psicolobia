@@ -41,7 +41,7 @@ const jsonLd = {
     sameAs: ["https://www.instagram.com/psicolobiaa"],
   },
   areaServed: { "@type": "Country", name: "BR" },
-  serviceType: ["Terapia Individual Online", "Ansiedade e Depressão", "Tratamento de Traumas", "Criadores de Conteúdo", "Terapia de Casal", "Grupos Terapêuticos"],
+  serviceType: ["Terapia Individual Online", "Ansiedade & Depressão", "Tratamento de Traumas", "Criadores de Conteúdo", "Terapia de Casal", "Grupo Terapêutico"],
 };
 
 export default function Home() {

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 type BotResponse = { msg: string; opts: string[] };
 const botResponses: Record<string, BotResponse> = {
   agendar: { msg: 'Para agendar com a Bea, role até a seção "Agendar" no site ou chame no WhatsApp (11) 98884-0525. Ela responde rápido! 💚', opts: ["serviços", "online", "valores", "grupos"] },
-  "serviços": { msg: "🌿 Serviços da Bea:\n\n• Terapia Individual Online (50 min)\n• Ansiedade & Depressão (50 min) — Cert. Albert Einstein\n• Tratamento de Traumas (50 min)\n• Criadores de Conteúdo (50 min)\n• Terapia de Casal (60 min)\n• Grupo Terapêutico (90 min)\n\n+3500 atendimentos realizados!", opts: ["agendar", "valores", "contato"] },
+  "serviços": { msg: "🌿 Serviços da Bea:\n\n• Terapia Individual Online (50 min)\n• Ansiedade & Depressão (50 min) — Cert. Albert Einstein\n• Tratamento de Traumas (50 min)\n• Criadores de Conteúdo (50 min)\n• Terapia de Casal (60 min)\n• Grupo Terapêutico (90 min)\n\n+3.500 atendimentos realizados!", opts: ["agendar", "valores", "contato"] },
   online: { msg: "💻 A Bea é especialista em atendimento online — o vínculo é vivo, humano e presente mesmo pela tela. Você pode usar a Sala de Espera Virtual para se preparar antes da sessão.", opts: ["sala de espera", "agendar", "serviços"] },
   casal: { msg: "💑 A terapia de casal é para casais que buscam fortalecer a comunicação, resolver conflitos e construir uma relação mais saudável. Sessões de 60 minutos com escuta empática para ambos.", opts: ["agendar", "serviços", "como funciona"] },
   grupos: { msg: "👥 Grupos terapêuticos ativos com a Bea:\n\n• Círculo de Mulheres (Qua 19h)\n• Manejo da Ansiedade (Ter 20h, online)\n• Autoestima (Sex 14h)\n\nGrupos de 6-8 pessoas.", opts: ["agendar", "serviços", "contato"] },

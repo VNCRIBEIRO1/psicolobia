@@ -3,12 +3,13 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 
 interface Payment {
-  id: number;
+  id: string;
   amount: string;
   status: string;
   method: string | null;
   dueDate: string | null;
   paidAt: string | null;
+  description: string | null;
   createdAt: string;
 }
 
@@ -17,12 +18,14 @@ const statusColors: Record<string, string> = {
   paid: "bg-green-100 text-green-800",
   overdue: "bg-red-100 text-red-800",
   cancelled: "bg-gray-100 text-gray-500",
+  refunded: "bg-purple-100 text-purple-700",
 };
 const statusLabels: Record<string, string> = {
   pending: "Pendente",
   paid: "Pago",
   overdue: "Atrasado",
   cancelled: "Cancelado",
+  refunded: "Reembolsado",
 };
 const methodLabels: Record<string, string> = {
   pix: "PIX",
@@ -40,7 +43,13 @@ export default function PortalPagamentosPage() {
   useEffect(() => {
     fetch("/api/portal/payments")
       .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setPayments(Array.isArray(data) ? data : []))
+      .then((data) => {
+        // API returns [{payment: {...}, patientName: "..."}] — unwrap
+        const list = Array.isArray(data)
+          ? data.map((row: Record<string, unknown>) => (row.payment ?? row) as Payment)
+          : [];
+        setPayments(list);
+      })
       .catch(() => setPayments([]))
       .finally(() => setLoading(false));
   }, []);
@@ -57,7 +66,7 @@ export default function PortalPagamentosPage() {
   const fmtCurrency = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
 
-  const generateFakePayLink = (id: number, amount: string) => {
+  const generateFakePayLink = (id: string, amount: string) => {
     const link = `https://psicolobia.vercel.app/pagamento/${id}?valor=${amount}&ref=${Date.now()}`;
     navigator.clipboard.writeText(link);
     alert(`Link de pagamento copiado!\n${link}`);

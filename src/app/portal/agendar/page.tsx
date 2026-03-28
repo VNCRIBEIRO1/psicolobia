@@ -12,12 +12,13 @@ type Step = "date" | "time" | "confirm" | "payment" | "done";
 function generateTimeSlots(start: string, end: string): string[] {
   const slots: string[] = [];
   const [sh, sm] = start.split(":").map(Number);
-  const [eh] = end.split(":").map(Number);
-  let h = sh, m = sm;
-  while (h < eh || (h === eh && m === 0)) {
+  const [eh, em] = end.split(":").map(Number);
+  const endMins = eh * 60 + (em || 0);
+  let h = sh, m = sm || 0;
+  while (h * 60 + m + 50 <= endMins) {
     slots.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
     m += 50; // 50 min sessions
-    if (m >= 60) { h++; m = 0; }
+    if (m >= 60) { h++; m -= 60; }
   }
   return slots;
 }
@@ -35,10 +36,15 @@ export default function AgendarPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [paymentLink, setPaymentLink] = useState("");
+  const [loadingAvail, setLoadingAvail] = useState(true);
 
   // Assistant messages
   const assistantMessages: Record<Step, string> = {
-    date: "🌿 Olá! Vamos agendar sua sessão. Primeiro, escolha uma data disponível no calendário abaixo.",
+    date: loadingAvail
+      ? "⏳ Carregando horários disponíveis, um momento…"
+      : availability.length === 0
+        ? "😔 Nenhum horário disponível no momento. Entre em contato pelo WhatsApp para agendar."
+        : "🌿 Olá! Vamos agendar sua sessão. Primeiro, escolha uma data disponível no calendário abaixo.",
     time: "Ótimo! Agora escolha o horário que funciona melhor para você.",
     confirm: "Perfeito! Revise os detalhes e confirme seu agendamento.",
     payment: "✅ Sessão agendada com sucesso! Agora finalize o pagamento para confirmar.",
@@ -49,7 +55,8 @@ export default function AgendarPage() {
     fetch("/api/portal/availability")
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setAvailability(Array.isArray(data) ? data : []))
-      .catch(() => setAvailability([]));
+      .catch(() => setAvailability([]))
+      .finally(() => setLoadingAvail(false));
   }, []);
 
   const changeMonth = (dir: number) => {
@@ -209,7 +216,9 @@ export default function AgendarPage() {
             })}
           </div>
           {availability.length === 0 && (
-            <p className="text-sm text-txt-muted text-center mt-4">Carregando horários disponíveis…</p>
+            <p className="text-sm text-txt-muted text-center mt-4">
+              {loadingAvail ? "⏳ Carregando horários disponíveis…" : "Nenhum horário configurado. Entre em contato pelo WhatsApp."}
+            </p>
           )}
         </div>
       )}

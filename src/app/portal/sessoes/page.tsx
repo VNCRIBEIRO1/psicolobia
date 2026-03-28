@@ -121,9 +121,13 @@ export default function PortalSessoesPage() {
                     </td>
                     <td className="px-6 py-4">
                       {(a.status === "confirmed" && a.modality === "online") && (
-                        <Link href="/#sala-espera" className="text-xs text-primary-dark font-bold hover:underline">
+                        <Link href={a.meetingUrl || "/#sala-espera"} target={a.meetingUrl ? "_blank" : undefined}
+                          className="text-xs text-primary-dark font-bold hover:underline">
                           Entrar na Sala →
                         </Link>
+                      )}
+                      {a.status === "pending" && (
+                        <span className="text-xs text-yellow-600">Aguardando confirmação</span>
                       )}
                     </td>
                   </tr>

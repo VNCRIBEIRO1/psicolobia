@@ -6,6 +6,7 @@ import Link from "next/link";
 export default function RegistroPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -32,7 +33,7 @@ export default function RegistroPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, phone }),
       });
 
       const data = await res.json();
@@ -81,6 +82,13 @@ export default function RegistroPage() {
             <label className="block text-xs font-bold mb-1.5">E-mail</label>
             <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
               placeholder="seu@email.com"
+              className="w-full py-3 px-4 border-[1.5px] border-primary/15 rounded-brand-sm font-body text-sm bg-white text-txt focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold mb-1.5">Telefone / WhatsApp</label>
+            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
+              placeholder="(11) 99999-9999"
               className="w-full py-3 px-4 border-[1.5px] border-primary/15 rounded-brand-sm font-body text-sm bg-white text-txt focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" />
           </div>
 
