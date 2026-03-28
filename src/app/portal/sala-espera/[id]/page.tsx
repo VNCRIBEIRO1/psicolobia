@@ -21,6 +21,13 @@ export default function SalaEsperaPage() {
   const [loading, setLoading] = useState(true);
   const [seconds, setSeconds] = useState<number | null>(null);
   const [showJitsi, setShowJitsi] = useState(false);
+  const [triagem, setTriagem] = useState<{
+    completed: boolean;
+    mood?: string;
+    sleepQuality?: string;
+    anxietyLevel?: number;
+    mainConcern?: string;
+  } | null>(null);
   const [checklist, setChecklist] = useState({
     camera: false,
     mic: false,
@@ -32,16 +39,21 @@ export default function SalaEsperaPage() {
 
   useEffect(() => {
     if (!appointmentId) return;
-    fetch(`/api/appointments/${appointmentId}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
+    // Fetch appointment and triagem in parallel
+    Promise.all([
+      fetch(`/api/appointments/${appointmentId}`).then((r) => (r.ok ? r.json() : null)),
+      fetch(`/api/portal/triagem?appointmentId=${appointmentId}`).then((r) => (r.ok ? r.json() : null)),
+    ])
+      .then(([data, triData]) => {
         if (data) {
           setApt(data);
-          // Calculate seconds until session start
           const sessionDateTime = new Date(`${data.date}T${data.startTime}`);
           const now = new Date();
           const diff = Math.max(0, Math.floor((sessionDateTime.getTime() - now.getTime()) / 1000));
           setSeconds(diff);
+        }
+        if (triData) {
+          setTriagem(triData);
         }
       })
       .catch(() => {})
@@ -172,23 +184,51 @@ export default function SalaEsperaPage() {
         )}
       </div>
 
-      {/* Triagem reminder */}
-      <div className="bg-accent/5 border border-accent/20 rounded-brand p-5 mb-6">
+      {/* Triagem section */}
+      <div className={`border rounded-brand p-5 mb-6 ${triagem?.completed ? "bg-green-50 border-green-200" : "bg-accent/5 border-accent/20"}`}>
         <div className="flex items-center gap-3">
-          <span className="text-2xl">📋</span>
+          <span className="text-2xl">{triagem?.completed ? "✅" : "📋"}</span>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-txt">Triagem pré-sessão</p>
+            <p className="text-sm font-semibold text-txt">
+              {triagem?.completed ? "Triagem concluída" : "Triagem pré-sessão"}
+            </p>
             <p className="text-xs text-txt-muted mt-0.5">
-              Preencha antes da sessão para que a Bea possa se preparar melhor.
+              {triagem?.completed
+                ? "Suas respostas foram registradas. A Bea vai revisá-las antes da sessão."
+                : "Preencha antes da sessão para que a Bea possa se preparar melhor."}
             </p>
           </div>
           <Link
             href={`/portal/triagem/${appointmentId}`}
-            className="text-xs text-primary-dark font-bold hover:underline whitespace-nowrap"
+            className={`text-xs font-bold hover:underline whitespace-nowrap ${triagem?.completed ? "text-green-700" : "text-primary-dark"}`}
           >
-            Preencher →
+            {triagem?.completed ? "Revisar →" : "Preencher →"}
           </Link>
         </div>
+        {triagem?.completed && triagem.mood && (
+          <div className="mt-3 pt-3 border-t border-green-200 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-txt-light">
+            <div>
+              <span className="font-semibold text-txt">Humor:</span>{" "}
+              {triagem.mood === "muito_bem" ? "😄 Muito bem" : triagem.mood === "bem" ? "🙂 Bem" : triagem.mood === "neutro" ? "😐 Neutro" : triagem.mood === "mal" ? "😟 Mal" : "😢 Muito mal"}
+            </div>
+            {triagem.sleepQuality && (
+              <div>
+                <span className="font-semibold text-txt">Sono:</span>{" "}
+                {triagem.sleepQuality === "otimo" ? "Ótimo" : triagem.sleepQuality === "bom" ? "Bom" : triagem.sleepQuality === "regular" ? "Regular" : triagem.sleepQuality === "ruim" ? "Ruim" : "Péssimo"}
+              </div>
+            )}
+            {triagem.anxietyLevel !== undefined && (
+              <div>
+                <span className="font-semibold text-txt">Ansiedade:</span> {triagem.anxietyLevel}/10
+              </div>
+            )}
+            {triagem.mainConcern && (
+              <div className="col-span-2 sm:col-span-3">
+                <span className="font-semibold text-txt">Foco:</span> {triagem.mainConcern}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Equipment Checklist (online only) */}

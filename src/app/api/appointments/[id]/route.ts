@@ -3,11 +3,12 @@ import { db } from "@/lib/db";
 import { appointments, patients, payments, settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { createNotification } from "@/lib/notifications";
-import { requireAdmin } from "@/lib/api-auth";
+import { requireAdmin, requireAuth } from "@/lib/api-auth";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const auth = await requireAdmin();
+    // Allow both admin and authenticated patients (who own the appointment)
+    const auth = await requireAuth();
     if (auth.error) return auth.response;
 
     const { id } = await params;
@@ -15,6 +16,25 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (!appointment) {
       return NextResponse.json({ error: "Agendamento não encontrado." }, { status: 404 });
     }
+
+    const role = auth.session!.user.role;
+    // Admin/therapist can see any appointment
+    if (role === "admin" || role === "therapist") {
+      return NextResponse.json(appointment);
+    }
+
+    // Patient can only see their own appointment
+    const userId = auth.session!.user.id;
+    const [patient] = await db
+      .select({ id: patients.id })
+      .from(patients)
+      .where(eq(patients.userId, userId))
+      .limit(1);
+
+    if (!patient || appointment.patientId !== patient.id) {
+      return NextResponse.json({ error: "Agendamento não encontrado." }, { status: 404 });
+    }
+
     return NextResponse.json(appointment);
   } catch (error) {
     console.error("GET /api/appointments/[id] error:", error);

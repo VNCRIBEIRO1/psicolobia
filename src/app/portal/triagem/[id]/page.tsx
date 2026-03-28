@@ -84,7 +84,11 @@ export default function TriagemPage() {
       });
       if (res.ok) {
         setDone(true);
-        flash("Triagem salva com sucesso! ✅");
+        flash("Triagem salva com sucesso! Redirecionando… ✅");
+        // Auto-redirect to Sala de Espera after 2 seconds
+        setTimeout(() => {
+          router.push(`/portal/sala-espera/${appointmentId}`);
+        }, 2000);
       } else {
         flash("Erro ao salvar triagem.");
       }
